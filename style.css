@@ -1,0 +1,9 @@
+html, body, #div_canvas, #cnv_editor {
+    height: 100%;
+    width: 100vw;
+    cursor: default;
+}
+body {
+    padding: 0;
+    margin: 0;
+}
