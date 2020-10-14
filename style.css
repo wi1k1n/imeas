@@ -11,3 +11,30 @@ body {
 .hidden {
     display: none;
 }
+
+.info {
+    position: absolute;
+    background-color: aliceblue;
+    padding: 2px 5px;
+}
+.info-debug {
+    left: 0px;
+    top: 0px;
+}
+.info-mouse {
+    right: 0px;
+    top: 0px;
+    text-align: right;
+}
+.info-img {
+    left: 0px;
+    bottom: 0px;
+}
+.info-tools {
+    left: 50%;
+    bottom: 0px;
+    transform: translate(-50%, -50%);
+    background-color: bisque;
+    padding: 5px 10px;
+    text-align: center;
+}
