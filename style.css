@@ -14,8 +14,9 @@ body {
 
 .info {
     position: absolute;
-    background-color: rgba(174, 255, 255, 0.5);
+    background-color: rgba(174, 255, 255, 0.6);
     padding: 2px 5px;
+    border: 1px solid black;
 }
 .info-debug {
     left: 0px;
@@ -33,8 +34,12 @@ body {
 .info-tools {
     left: 50%;
     bottom: 0px;
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, 0%);
     background-color: rgba(255, 254, 174, 0.5);
     padding: 5px 10px;
+    margin-bottom: 5px;
     text-align: center;
+    
+    max-height: 100px;
+    overflow-y: auto;
 }

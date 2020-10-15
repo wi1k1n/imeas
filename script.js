@@ -1,8 +1,8 @@
 (function() {
-	const DEBUG = true;
+	const DEBUG = false;
 
-	const IMGMAXWIDTH = 4096;
-	const IMGMAXHEIGHT = 4096;
+	const IMGMAXWIDTH = 8192;
+	const IMGMAXHEIGHT = 8192;
 	const IMGMINWIDTH = 8;
 	const IMGMINHEIGHT = 8;
 	const DRAGMINDST = 1;  // minimum distance (manhattan) at which drag detection starts
@@ -11,11 +11,14 @@
 	const PASTEIMAGEMIMETYPES = ['image/png', 'image/jpeg', 'image/bmp'];
 
 	const RULLERCURSORR = 1;
+	const RULLERNODEHOVERR = 8;
+	const RULLERNODEMARKSIZE = 8;
 
 	
 	const PI2 = Math.PI * 2;
 	const ZOOMMLTIN = ZOOMMLT;
 	const ZOOMMLTOUT = 1. / ZOOMMLT;
+	const RULLERNODEMARKSIZEHALF = RULLERNODEMARKSIZE / 2;
 
 	const cnv = document.getElementById('cnv_editor');
 	const ctx = cnv.getContext ? cnv.getContext('2d') : null;
@@ -85,6 +88,7 @@
 		function toolOff() {
 			tool = null;
 			hideDiv(divTools);
+			divToolsDistance.innerHTML = '';
 		}
 		function toolOn() {
 			tool = t;
@@ -128,14 +132,20 @@
 	function toolsMouseDown(evt) {
 		// add new node when clicked
 		if (tool === 'ruller') {
+			// left mouse buttom
 			if (evt.buttons === 1) {
-				const cs = rullerSegments.length - 1;
-				rullerSegments[cs].push(mousePosImg);
-				const l = rullerSegments[cs].length - 1;
-				if (l > 0) {
-					let d = dst(rullerSegments[cs][l], rullerSegments[cs][l-1]);
-					rullerDists[cs].push(d);
-					rullerDistsCumul[cs].push(d + (rullerDistsCumul[cs].length > 0 ? rullerDistsCumul[cs][l - 2] : 0)); 
+				// click on node
+				if (rullerGetHoverNode()) {
+					console.log('node clicked!');
+				} else {
+					const cs = rullerSegments.length - 1;
+					rullerSegments[cs].push(mousePosImg);
+					const l = rullerSegments[cs].length - 1;
+					if (l > 0) {
+						let d = dst(rullerSegments[cs][l], rullerSegments[cs][l-1]);
+						rullerDists[cs].push(d);
+						rullerDistsCumul[cs].push(d + (rullerDistsCumul[cs].length > 0 ? rullerDistsCumul[cs][l - 2] : 0)); 
+					}
 				}
 			}
 		}
@@ -165,6 +175,22 @@
 			rullerSegments[rullerSegments.length - 1] = [];
 		}
 	}
+	// returns indices of node hovered by cursor
+	function rullerGetHoverNode() {
+		let closeNode = null;  // indices of hovered node
+		for (let j = 0; j < rullerSegments.length - 1; j++) {
+			const rs = rullerSegments[j];
+			for (let k = 0; k < rs.length; k++) {
+				// console.log(dstm(mousePos.x, mousePos.y, rs[k].x * imgScale.x + imgOffset.x, rs[k].y * imgScale.y + imgOffset.y));
+				if (dstm(mousePos.x, mousePos.y, rs[k].x * imgScale.x + imgOffset.x, rs[k].y * imgScale.y + imgOffset.y) <= RULLERNODEHOVERR) {
+					closeNode = [j, k];
+					break;
+				}
+			}
+			if (closeNode) break;
+		}
+		return closeNode;
+	}
 	function onEsc() {
 		if (tool === 'ruller') {
 			rullerActionCancel();
@@ -173,48 +199,76 @@
 
 	function redrawTools() {
 		ctx.save();
-		for (let i = 0; i < 2; i++) {
-			ctx.strokeStyle = i ? 'white' : 'black';
-			ctx.lineWidth = i ? 0.75 : 2.5;
-			ctx.lineCap = 'round';
-			ctx.lineJoin = 'round';
-			// ctx.globalCompositeOperation = 'exclusion';
+		if (tool === 'ruller') {
+			const rsl = rullerSegments[rullerSegments.length - 1];  // ruller segment last
+			for (let i = 0; i < 2; i++) {
+				ctx.strokeStyle = i ? '#ffffb3' : 'black';
+				ctx.fillStyle = ctx.strokeStyle;
+				ctx.lineWidth = i ? 1.0 : 2.8;
+				const nodeR = i ? 1.3 : 2.2;
+				ctx.lineCap = 'round';
+				ctx.lineJoin = 'round';
+				// ctx.globalCompositeOperation = 'exclusion';
 
-			ctx.beginPath();
-
-			for (let j = 0; j < rullerSegments.length; j++) {
-				const rs = rullerSegments[j];
-				// draw already created segments
-				if (rs.length) {
-					ctx.moveTo(rs[0].x * imgScale.x + imgOffset.x,
-							rs[0].y * imgScale.y + imgOffset.y);
-					for (let i = 1; i < rs.length; i++) {
-						ctx.lineTo(rs[i].x * imgScale.x + imgOffset.x,
-								rs[i].y * imgScale.y + imgOffset.y);
+				ctx.beginPath();
+				for (let j = 0; j < rullerSegments.length; j++) {
+					const rs = rullerSegments[j];
+					// draw already created segments
+					if (rs.length) {
+						ctx.moveTo(rs[0].x * imgScale.x + imgOffset.x, rs[0].y * imgScale.y + imgOffset.y);
+						for (let k = 1; k < rs.length; k++) {
+							ctx.lineTo(rs[k].x * imgScale.x + imgOffset.x, rs[k].y * imgScale.y + imgOffset.y);
+						}
+					}
+				}
+				
+				// draw 'live' line to mouse
+				if (rsl.length) {
+					const l = rsl.length - 1;
+					ctx.moveTo(rsl[l].x * imgScale.x + imgOffset.x, rsl[l].y * imgScale.y + imgOffset.y);
+					ctx.lineTo(mousePos.x, mousePos.y);
+				}
+				ctx.stroke();
+				
+				for (let j = 0; j < rullerSegments.length; j++) {
+					const rs = rullerSegments[j];
+					for (let k = 1; k < rs.length - (rsl.length && (j === rullerSegments.length-1) ? 0 : 1); k++) {
+						ctx.beginPath();
+						ctx.arc(rs[k].x * imgScale.x + imgOffset.x, rs[k].y * imgScale.y + imgOffset.y, nodeR, 0, PI2);
+						ctx.fill();
 					}
 				}
 			}
-			
-			// draw 'live' line to mouse
-			if (tool === 'ruller') {
-				const rs = rullerSegments[rullerSegments.length - 1];
-				if (rs.length) {
-					const l = rs.length - 1;
-					ctx.moveTo(rs[l].x * imgScale.x + imgOffset.x,
-							rs[l].y * imgScale.y + imgOffset.y);
-					ctx.lineTo(mousePos.x, mousePos.y);
+			if (rsl.length === 0) {
+				// determine if cursor is close enough to one of nodes
+				const cpInds = rullerGetHoverNode();
+
+				if (cpInds) {
+					const r = rullerSegments[cpInds[0]][cpInds[1]];
+					const cp = {x: r.x * imgScale.x + imgOffset.x, y: r.y * imgScale.y + imgOffset.y};
+					// console.log(cp);
+					// ctx.fillStyle = '#a9f0f8';  // 169 240 248
+					// ctx.strokeStyle = '#0a6f7a';
+					ctx.fillStyle = '#ffffb3';  // 169 240 248
+					ctx.strokeStyle = '#000000';
+					ctx.lineWidth = 1;
+					ctx.beginPath();
+					// ctx.arc(closePoint.x, closePoint.y, RULLERNODEHOVERR, 0, PI2);
+					ctx.rect(cp.x - RULLERNODEMARKSIZEHALF,
+							 cp.y - RULLERNODEMARKSIZEHALF,
+							 RULLERNODEMARKSIZE, RULLERNODEMARKSIZE);
+					ctx.globalAlpha = 1.0;
+					ctx.fill();
+					ctx.globalAlpha = 1.0;
+					ctx.stroke();
+				} else {
+					// draw cursor
+					ctx.fillStyle = 'yellow';
+					ctx.beginPath();
+					ctx.arc(mousePos.x, mousePos.y, RULLERCURSORR, 0, PI2);
+					ctx.fill();
 				}
 			}
-
-			ctx.stroke();
-		}
-
-		if (tool === 'ruller') {
-			// draw cursor
-			ctx.fillStyle = 'yellow';
-			ctx.beginPath();
-			ctx.arc(mousePos.x, mousePos.y, RULLERCURSORR, 0, PI2);
-			ctx.fill();
 		}
 		ctx.restore();
 	}
@@ -311,8 +365,14 @@
 		divImgInfo.innerHTML = isize + ' | ' + iscale;
 	}
 	function updateDivTools() {
-		if (rullerDistsCumul.length > 0) {
-			// divToolsDistance.innerHTML = rullerDistsCumul.reduce((a, b) => a + b[b.length - 1], 0).toFixed(2);
+		let res = '';
+		for (let i = rullerDistsCumul.length-1; i >= 0; i--) {
+			if (rullerDistsCumul[i].length) {
+				res += (i+1)+': '+rullerDistsCumul[i][rullerDistsCumul[i].length - 1].toFixed(2)+'<br>';
+			}
+		}
+		if (res) {
+			divToolsDistance.innerHTML = res.substring(0, res.length - 4);
 		}
 	}
 
@@ -501,6 +561,14 @@
 			return Math.sqrt((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0));
 		else if (arguments.length === 2)
 			return Math.sqrt((y0.x - x0.x) * (y0.x - x0.x) + (y0.y - x0.y) * (y0.y - x0.y));
+		else
+			console.error('invalid parameters');
+	}
+	function dstm(x0, y0, x1, y1) {
+		if (arguments.length === 4)
+			return Math.abs(x1 - x0) + Math.abs(y1 - y0);
+		else if (arguments.length === 2)
+			return Math.abs(y0.x - x0.x) + Math.abs(y0.y - x0.y);
 		else
 			console.error('invalid parameters');
 	}
