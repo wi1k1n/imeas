@@ -43,3 +43,7 @@ body {
     max-height: 100px;
     overflow-y: auto;
 }
+#divToolsDistance {
+    text-align: left;
+    float: left;
+}

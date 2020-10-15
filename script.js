@@ -12,7 +12,7 @@
 
 	const RULLERCURSORR = 1;
 	const RULLERNODEHOVERR = 8;
-	const RULLERNODEMARKSIZE = 8;
+	const RULLERNODEMARKSIZE = 4;
 
 	
 	const PI2 = Math.PI * 2;
@@ -47,9 +47,11 @@
 	let tool = null;
 	// let imgLockedBeforeTool = null;
 	// Ruller variables
+	let rullerDragOffset = {x: 0, y: 0};
+	let rullerDraggingInds = null;
 	let rullerSegments = [];
 	let rullerDists = [];
-	let rullerDistsCumul = [];
+	// let rullerDistsCumul = [];
 
 	function resetScale() {
 		imgScale = {x: 1.0, y: 1.0};
@@ -100,7 +102,7 @@
 				case 'ruller':
 					rullerSegments = [[]];
 					rullerDists = [[]];
-					rullerDistsCumul = [[]];
+					// rullerDistsCumul = [[]];
 					// toggleImgLocked(true);
 					break;
 				default: 
@@ -129,14 +131,31 @@
 
 		redrawImage();
 	}
+	function rullerRecalculateDistances(inds) {
+		const chain = inds[0], node = inds[1];
+		let startNode = node;
+		// recalc precessor segment
+		if (node > 0) {
+			rullerDists[chain][node - 1] = dst(rullerSegments[chain][node - 1], rullerSegments[chain][node]);
+			startNode = node - 1;
+		}
+		// recalc accessor segment
+		if (node < rullerSegments[chain].length - 1) {
+			rullerDists[chain][node] = dst(rullerSegments[chain][node], rullerSegments[chain][node + 1]);
+		}
+	}
 	function toolsMouseDown(evt) {
 		// add new node when clicked
 		if (tool === 'ruller') {
 			// left mouse buttom
 			if (evt.buttons === 1) {
 				// click on node
-				if (rullerGetHoverNode()) {
-					console.log('node clicked!');
+				rullerDraggingInds = rullerGetHoverNode();
+				if (rullerDraggingInds) {
+					// console.log(rullerDraggingInds, ' node clicked!');
+					const r = rullerSegments[rullerDraggingInds[0]][rullerDraggingInds[1]];
+					rullerDragOffset = {x: (mousePos.x - imgOffset.x) / imgScale.x - r.x, y: (mousePos.y - imgOffset.y) / imgScale.y - r.y};
+					// console.log(rullerDragOffset);
 				} else {
 					const cs = rullerSegments.length - 1;
 					rullerSegments[cs].push(mousePosImg);
@@ -144,7 +163,7 @@
 					if (l > 0) {
 						let d = dst(rullerSegments[cs][l], rullerSegments[cs][l-1]);
 						rullerDists[cs].push(d);
-						rullerDistsCumul[cs].push(d + (rullerDistsCumul[cs].length > 0 ? rullerDistsCumul[cs][l - 2] : 0)); 
+						// rullerDistsCumul[cs].push(d + (rullerDistsCumul[cs].length > 0 ? rullerDistsCumul[cs][l - 2] : 0)); 
 					}
 				}
 			}
@@ -156,11 +175,18 @@
 	function toolsMouseMove(evt) {
 		// need to redraw, since with ruller cursor is moving
 		if (tool === 'ruller') {
+			if (rullerDraggingInds) {
+				rullerSegments[rullerDraggingInds[0]][rullerDraggingInds[1]].x = (evt.x - imgOffset.x) / imgScale.x - rullerDragOffset.x;
+				rullerSegments[rullerDraggingInds[0]][rullerDraggingInds[1]].y = (evt.y - imgOffset.y) / imgScale.y - rullerDragOffset.y;
+			}
 			redrawImage();
 			updateDivTools();
 		}
 	}
 	function toolsMouseUp(evt) {
+		if (rullerDraggingInds)
+			rullerRecalculateDistances(rullerDraggingInds);
+		rullerDraggingInds = null;
 	}
 
 	function rullerActionCancel() {
@@ -168,7 +194,7 @@
 		if (rullerSegments[rullerSegments.length - 1].length > 1) {
 			rullerSegments.push([]);
 			rullerDists.push([]);
-			rullerDistsCumul.push([]);
+			// rullerDistsCumul.push([]);
 		}
 		// cancel current chain in case there is not enough points for segment
 		else {
@@ -182,7 +208,7 @@
 			const rs = rullerSegments[j];
 			for (let k = 0; k < rs.length; k++) {
 				// console.log(dstm(mousePos.x, mousePos.y, rs[k].x * imgScale.x + imgOffset.x, rs[k].y * imgScale.y + imgOffset.y));
-				if (dstm(mousePos.x, mousePos.y, rs[k].x * imgScale.x + imgOffset.x, rs[k].y * imgScale.y + imgOffset.y) <= RULLERNODEHOVERR) {
+				if (dst(mousePos.x, mousePos.y, rs[k].x * imgScale.x + imgOffset.x, rs[k].y * imgScale.y + imgOffset.y) <= RULLERNODEHOVERR) {
 					closeNode = [j, k];
 					break;
 				}
@@ -249,14 +275,14 @@
 					// console.log(cp);
 					// ctx.fillStyle = '#a9f0f8';  // 169 240 248
 					// ctx.strokeStyle = '#0a6f7a';
-					ctx.fillStyle = '#ffffb3';  // 169 240 248
+					ctx.fillStyle = 'yellow';  // 169 240 248
 					ctx.strokeStyle = '#000000';
 					ctx.lineWidth = 1;
 					ctx.beginPath();
-					// ctx.arc(closePoint.x, closePoint.y, RULLERNODEHOVERR, 0, PI2);
-					ctx.rect(cp.x - RULLERNODEMARKSIZEHALF,
-							 cp.y - RULLERNODEMARKSIZEHALF,
-							 RULLERNODEMARKSIZE, RULLERNODEMARKSIZE);
+					ctx.arc(cp.x, cp.y, RULLERNODEMARKSIZE, 0, PI2);
+					// ctx.rect(cp.x - RULLERNODEMARKSIZEHALF,
+					// 		 cp.y - RULLERNODEMARKSIZEHALF,
+					// 		 RULLERNODEMARKSIZE, RULLERNODEMARKSIZE);
 					ctx.globalAlpha = 1.0;
 					ctx.fill();
 					ctx.globalAlpha = 1.0;
@@ -366,9 +392,9 @@
 	}
 	function updateDivTools() {
 		let res = '';
-		for (let i = rullerDistsCumul.length-1; i >= 0; i--) {
-			if (rullerDistsCumul[i].length) {
-				res += (i+1)+': '+rullerDistsCumul[i][rullerDistsCumul[i].length - 1].toFixed(2)+'<br>';
+		for (let i = rullerDists.length-1; i >= 0; i--) {
+			if (rullerDists[i].length) {
+				res += (i+1)+': '+(rullerDists[i].reduce((a, e) => a + e)).toFixed(2)+'<br>';
 			}
 		}
 		if (res) {
@@ -513,9 +539,9 @@
 			}).catch(e => null);
 		}, false);
 
-		document.onmousedown = cnvOnMouseDown;
-		document.onmouseup = cnvOnMouseUp;
-		document.onmousemove = cnvOnMouseMove;
+		cnv.onmousedown = cnvOnMouseDown;
+		cnv.onmouseup = cnvOnMouseUp;
+		cnv.onmousemove = cnvOnMouseMove;
 		cnv.onwheel = cnvOnWheel;
 		document.oncontextmenu = preventDefaultEvents;
 		cnv.oncontextmenu = preventDefaultEvents;
