@@ -10,6 +10,7 @@
     const PASTEIMAGEMIMETYPES = ['image/png', 'image/jpeg', 'image/bmp'];
 
     const RULLERCURSORR = 1;
+
     
     const PI2 = Math.PI * 2;
 
@@ -372,7 +373,7 @@
     function cnvOnWheel(evt) {
         zoom(evt);
         
-        preventDefaultEvents(evt);
+        // preventDefaultEvents(evt);
         return false;
     }
     function preventDefaultEvents(evt){
@@ -414,10 +415,11 @@
             }).catch(e => null);
         }, false);
 
-        cnv.onmousedown = cnvOnMouseDown;
-        cnv.onmouseup = cnvOnMouseUp;
-        cnv.onmousemove = cnvOnMouseMove;
+        document.onmousedown = cnvOnMouseDown;
+        document.onmouseup = cnvOnMouseUp;
+        document.onmousemove = cnvOnMouseMove;
         cnv.onwheel = cnvOnWheel;
+        document.oncontextmenu = preventDefaultEvents;
         cnv.oncontextmenu = preventDefaultEvents;
     })();
 

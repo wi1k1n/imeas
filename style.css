@@ -14,7 +14,7 @@ body {
 
 .info {
     position: absolute;
-    background-color: aliceblue;
+    background-color: rgba(174, 255, 255, 0.5);
     padding: 2px 5px;
 }
 .info-debug {
@@ -34,7 +34,7 @@ body {
     left: 50%;
     bottom: 0px;
     transform: translate(-50%, -50%);
-    background-color: bisque;
+    background-color: rgba(255, 254, 174, 0.5);
     padding: 5px 10px;
     text-align: center;
 }
