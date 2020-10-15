@@ -117,8 +117,8 @@
                 rullerDists.push(d);
                 rullerDistsCumul.push(d + (rullerDistsCumul.length > 0 ? rullerDistsCumul[l - 2] : 0)); 
             }
-            console.log(rullerDists);
-            console.log(rullerDistsCumul);
+            // console.log(rullerDists);
+            // console.log(rullerDistsCumul);
         }
         updateDivTools();
     }
@@ -133,48 +133,52 @@
         
     }
 
-    function redrawTools() {
-        function ctxSegmentsStrokeStyle() {
-            ctx.strokeStyle = 'red';
-            ctx.lineWidth = 1;
+    function onEsc() {
+        if (tool === 'ruller') {
+            alert('blah blah');
         }
-        // draw already created segments
-        if (rullerSegments.length) {
-            ctx.save();
-            ctxSegmentsStrokeStyle();
+    }
+
+    function redrawTools() {
+        ctx.save();
+        for (let i = 0; i < 2; i++) {
+            ctx.strokeStyle = i ? 'white' : 'black';
+            ctx.lineWidth = i ? 0.75 : 2.5;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            // ctx.globalCompositeOperation = 'exclusion';
+
             ctx.beginPath();
-            ctx.moveTo(rullerSegments[0].x * imgScale.x + imgOffset.x,
-                       rullerSegments[0].y * imgScale.y + imgOffset.y);
-            for (let i = 1; i < rullerSegments.length; i++) {
-                ctx.lineTo(rullerSegments[i].x * imgScale.x + imgOffset.x,
-                           rullerSegments[i].y * imgScale.y + imgOffset.y);
+
+            // draw already created segments
+            if (rullerSegments.length) {
+                ctx.moveTo(rullerSegments[0].x * imgScale.x + imgOffset.x,
+                        rullerSegments[0].y * imgScale.y + imgOffset.y);
+                for (let i = 1; i < rullerSegments.length; i++) {
+                    ctx.lineTo(rullerSegments[i].x * imgScale.x + imgOffset.x,
+                            rullerSegments[i].y * imgScale.y + imgOffset.y);
+                }
+            }
+            // draw 'live' line to mouse
+            if (tool === 'ruller') {
+                if (rullerSegments.length) {
+                    const l = rullerSegments.length - 1;
+                    ctx.moveTo(rullerSegments[l].x * imgScale.x + imgOffset.x,
+                            rullerSegments[l].y * imgScale.y + imgOffset.y);
+                    ctx.lineTo(mousePos.x, mousePos.y);
+                }
             }
             ctx.stroke();
-            ctx.restore();
         }
 
         if (tool === 'ruller') {
-            // draw 'live' line to mouse
-            if (rullerSegments.length) {
-                ctx.save();
-                ctxSegmentsStrokeStyle();
-                ctx.beginPath();
-                const l = rullerSegments.length - 1;
-                ctx.moveTo(rullerSegments[l].x * imgScale.x + imgOffset.x,
-                           rullerSegments[l].y * imgScale.y + imgOffset.y);
-                ctx.lineTo(mousePos.x, mousePos.y);
-                ctx.stroke();
-                ctx.restore();
-            }
-
             // draw cursor
-            ctx.save();
             ctx.fillStyle = 'yellow';
             ctx.beginPath();
             ctx.arc(mousePos.x, mousePos.y, RULLERCURSORR, 0, PI2);
             ctx.fill();
-            ctx.restore();
         }
+        ctx.restore();
     }
 
     // most probably useless ¯\_(ツ)_/¯
@@ -426,7 +430,8 @@
                     showOpenFileDialog();
                     break;
                 case 'esc':
-                    console.log('you pressed esc!');
+                    // console.log('you pressed esc!');
+                    onEsc();
                     break;
                 case 'space':
                     resetScale();
