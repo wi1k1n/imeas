@@ -154,25 +154,37 @@
 	function toolsMouseDown(evt) {
 		// add new node when clicked
 		if (tool === 'ruller') {
+			function insertNode(chain, ind) {
+				rullerSegments[chain].splice(ind, 0, mousePosImg);
+				rullerRecalculateDistances();
+			}
 			rullerClickedNodeInds = rullerGetHoverNode();
 			// click on node
 			if (rullerClickedNodeInds) {
 				// left mouse button
 				if (evt.buttons === 1) {
 					if (evt.ctrlKey) {
-						console.log('create new node');
+						insertNode(rullerClickedNodeInds[0], rullerClickedNodeInds[1]);
+						// console.log('created new node: ', rullerSegments[rullerClickedNodeInds[0][rullerClickedNodeInds[1]]]);
+						rullerDragOffset = {x: 0, y: 0};
 					} else {
 						const r = rullerSegments[rullerClickedNodeInds[0]][rullerClickedNodeInds[1]];
 						rullerDragOffset = {x: (mousePos.x - imgOffset.x) / imgScale.x - r.x, y: (mousePos.y - imgOffset.y) / imgScale.y - r.y};
 					}
 				} else if (evt.buttons === 4) {
-					console.log('delete node ', rullerClickedNodeInds);
-					rullerSegments[rullerClickedNodeInds[0]].splice(rullerClickedNodeInds[1], 1);
-					if (rullerSegments[rullerClickedNodeInds[0]].length < 2) {
+					if (evt.shiftKey) {
+						// console.log('delete chain');
 						rullerSegments.splice(rullerClickedNodeInds[0], 1);
 						rullerDists.splice(rullerClickedNodeInds[0], 1);
 					} else {
-						rullerRecalculateDistances([rullerClickedNodeInds[0], null]);
+						// console.log('delete node ', rullerClickedNodeInds);
+						rullerSegments[rullerClickedNodeInds[0]].splice(rullerClickedNodeInds[1], 1);
+						if (rullerSegments[rullerClickedNodeInds[0]].length < 2) {
+							rullerSegments.splice(rullerClickedNodeInds[0], 1);
+							rullerDists.splice(rullerClickedNodeInds[0], 1);
+						} else {
+							rullerRecalculateDistances([rullerClickedNodeInds[0], null]);
+						}
 					}
 					redrawImage();
 				}
@@ -228,16 +240,19 @@
 	// returns indices of node hovered by cursor
 	function rullerGetHoverNode() {
 		let closeNode = null;  // indices of hovered node
+		let closestD = Infinity;
 		for (let j = 0; j < rullerSegments.length - 1; j++) {
 			const rs = rullerSegments[j];
 			for (let k = 0; k < rs.length; k++) {
 				// console.log(dstm(mousePos.x, mousePos.y, rs[k].x * imgScale.x + imgOffset.x, rs[k].y * imgScale.y + imgOffset.y));
-				if (dst(mousePos.x, mousePos.y, rs[k].x * imgScale.x + imgOffset.x, rs[k].y * imgScale.y + imgOffset.y) <= RULLERNODEHOVERR) {
+				const d = dst(mousePos.x, mousePos.y, rs[k].x * imgScale.x + imgOffset.x, rs[k].y * imgScale.y + imgOffset.y);
+				if (d <= RULLERNODEHOVERR) {
 					closeNode = [j, k];
-					break;
+					closestD = d;
+					// break;
 				}
 			}
-			if (closeNode) break;
+			// if (closeNode) break;
 		}
 		return closeNode;
 	}
