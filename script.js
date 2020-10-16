@@ -376,31 +376,38 @@
 				}
 				
 				// draw distance labels
+				function drawTextOnEdge(node1, node2, d) {
+					// takes 2 nodes, and tries to draw text on it. returns true, if succeeded, false o/w
+					d = d ?? dst(node1, node2);
+
+					const txt = d.toFixed(1);
+					const txtm = ctx.measureText(txt);
+					const r0 = node1;
+					if (txtm.width + RULLERLABELPADDINGX * 2 > d * imgScale.x) return false;
+					const r1 = node2;
+					const ox = (r0.x + r1.x) / 2 * imgScale.x + imgOffset.x;
+					const oy = (r0.y + r1.y) / 2 * imgScale.y + imgOffset.y;
+					ctx.save();
+					ctx.translate(ox, oy);
+					let ang = Math.atan2(r1.y - r0.y, r1.x - r0.x);
+					if (Math.abs(ang) > PIH) ang -= PI;
+					ctx.rotate(ang);
+					if (i) ctx.fillText(txt, -txtm.width / 2, -4);
+					else ctx.strokeText(txt, -txtm.width / 2, -4);
+					ctx.restore();
+					return true;
+				}
 				for (let j = 0; j < rullerDists.length; j++) {
-					const cd = rullerDists[j];
+					const cd = rullerDists[j];  // current distance
 					if (!cd.length) continue;
-					const cs = rullerNodes[j];
+					const cc = rullerNodes[j];  // current chain
 					for (let k = 0; k < cd.length; k++) {
-						const txt = cd[k].toFixed(1);
-						const txtm = ctx.measureText(txt);
-						const r0 = cs[k];
-						if (txtm.width + RULLERLABELPADDINGX * 2 > cd[k] * imgScale.x) continue;
-						const r1 = cs[k + 1];
-						const ox = (r0.x + r1.x) / 2 * imgScale.x + imgOffset.x;
-						const oy = (r0.y + r1.y) / 2 * imgScale.y + imgOffset.y;
-						ctx.save();
-						ctx.translate(ox, oy);
-						let ang = Math.atan2(r1.y - r0.y, r1.x - r0.x);
-						if (Math.abs(ang) > PIH) ang -= PI;
-						ctx.rotate(ang);
-						if (i) ctx.fillText(txt, -txtm.width / 2, -4);
-						else ctx.strokeText(txt, -txtm.width / 2, -4);
-						ctx.restore();
+						if (!drawTextOnEdge(cc[k], cc[k + 1], cd[k]))
+							continue;
 					}
 				}
 				
 				// draw 'live' line to mouse
-				// console.log(rsl);
 				if (rsl.length) {
 					const l = rsl.length - 1;
 					ctx.moveTo(rsl[l].x * imgScale.x + imgOffset.x, rsl[l].y * imgScale.y + imgOffset.y);
@@ -409,6 +416,7 @@
 						pos = rullerConstrPos;
 					}
 					ctx.lineTo(pos.x * imgScale.x + imgOffset.x, pos.y * imgScale.y + imgOffset.y);
+					drawTextOnEdge(rsl[l], pos);
 				}
 				ctx.stroke();
 				
