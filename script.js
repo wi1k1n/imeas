@@ -12,9 +12,13 @@
 
 	const RULLERNODEHOVERR = 8;
 	const RULLERNODEMARKSIZE = 4;
+	const RULLERLABELPADDINGX = 6;
+	const RULLERLABELPADDINGy = 4;
 
 	
+	const PI = Math.PI;
 	const PI2 = Math.PI * 2;
+	const PIH = Math.PI * 0.5;
 	const ZOOMMLTIN = ZOOMMLT;
 	const ZOOMMLTOUT = 1. / ZOOMMLT;
 
@@ -261,6 +265,10 @@
 			rullerActionCancel();
 		}
 	}
+	function toggleInterpolation() {
+		ctx.imageSmoothingEnabled = !ctx.imageSmoothingEnabled;
+		redrawImage();
+	}
 
 	function redrawTools() {
 		ctx.save();
@@ -271,19 +279,44 @@
 				ctx.fillStyle = ctx.strokeStyle;
 				ctx.lineWidth = i ? 1.0 : 2.8;
 				const nodeR = i ? 1.3 : 2.2;
+				ctx.font = '10px sans serif';
 				ctx.lineCap = 'round';
 				ctx.lineJoin = 'round';
 				// ctx.globalCompositeOperation = 'exclusion';
 
 				ctx.beginPath();
+				// draw already created segments
 				for (let j = 0; j < rullerSegments.length; j++) {
 					const rs = rullerSegments[j];
-					// draw already created segments
 					if (rs.length) {
 						ctx.moveTo(rs[0].x * imgScale.x + imgOffset.x, rs[0].y * imgScale.y + imgOffset.y);
 						for (let k = 1; k < rs.length; k++) {
 							ctx.lineTo(rs[k].x * imgScale.x + imgOffset.x, rs[k].y * imgScale.y + imgOffset.y);
 						}
+					}
+				}
+				
+				// draw distance labels
+				for (let j = 0; j < rullerDists.length; j++) {
+					const cd = rullerDists[j];
+					if (!cd.length) continue;
+					const cs = rullerSegments[j];
+					for (let k = 0; k < cd.length; k++) {
+						const txt = cd[k].toFixed(1);
+						const txtm = ctx.measureText(txt);
+						const r0 = cs[k];
+						if (txtm.width + RULLERLABELPADDINGX * 2 > cd[k] * imgScale.x) continue;
+						const r1 = cs[k + 1];
+						const ox = (r0.x + r1.x) / 2 * imgScale.x + imgOffset.x;
+						const oy = (r0.y + r1.y) / 2 * imgScale.y + imgOffset.y;
+						ctx.save();
+						ctx.translate(ox, oy);
+						let ang = Math.atan2(r1.y - r0.y, r1.x - r0.x);
+						if (Math.abs(ang) > PIH) ang -= PI;
+						ctx.rotate(ang);
+						if (i) ctx.fillText(txt, -txtm.width / 2, -4);
+						else ctx.strokeText(txt, -txtm.width / 2, -4);
+						ctx.restore();
 					}
 				}
 				
@@ -295,6 +328,7 @@
 				}
 				ctx.stroke();
 				
+				// draw nodes
 				for (let j = 0; j < rullerSegments.length; j++) {
 					const rs = rullerSegments[j];
 					for (let k = 1; k < rs.length - (rsl.length && (j === rullerSegments.length-1) ? 0 : 1); k++) {
@@ -589,7 +623,7 @@
 
 	(function initializeHotKeys() {
 		// show open file dialog
-		hotkeys('ctrl+o,esc,space,o,r', function (event, handler){
+		hotkeys('ctrl+o,esc,space,o,r,i', function (event, handler){
 			switch (handler.key) {
 				case 'ctrl+o':
 					event.preventDefault();
@@ -612,6 +646,9 @@
 				//     toggleImgLocked();
 				//     imgLockedBeforeTool = null;
 				//     break;
+				case 'i':
+					toggleInterpolation();
+					break;
 				case 'r':
 					changeTool('ruller');
 					break;
