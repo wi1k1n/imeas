@@ -186,21 +186,43 @@
 				let curAng = Math.atan2(mousePosImg.y - n.y, mousePosImg.x - n.x);
 				if (curAng < 0) curAng += PI2;
 
+				// find out interval for current angle
 				let i = 0;
 				for (; i < angles.length; i++) {
 					if (curAng < angles[i])
 						break;
 				}
-				if (!i) i = 1;
+				if (!i) i = 1;  // exact value of 0 is impossible
+				// gravitate to closest step angle
 				if (curAng - angles[i - 1] < angles[i] - curAng) i--;
 
 				const d = dst(n, mousePosImg);
-
 				rullerConstrPos.x = n.x + Math.cos(angles[i]) * d;
 				rullerConstrPos.y = n.y + Math.sin(angles[i]) * d;
 			}
 			// rullerConstrPos = mousePosImg;
 		}
+	}
+	function deleteNode(shift) {
+		shift = shift ?? false;
+
+		// shift -> delete whole chain
+		if (shift) {
+			rullerNodes.splice(rullerClickedNodeInds[0], 1);
+			rullerDists.splice(rullerClickedNodeInds[0], 1);
+		}
+		// no shift -> delete clicked node
+		else {
+			rullerNodes[rullerClickedNodeInds[0]].splice(rullerClickedNodeInds[1], 1);
+			if (rullerNodes[rullerClickedNodeInds[0]].length < 2) {
+				rullerNodes.splice(rullerClickedNodeInds[0], 1);
+				rullerDists.splice(rullerClickedNodeInds[0], 1);
+			} else {
+				rullerRecalculateDistances([rullerClickedNodeInds[0], null]);
+			}
+		}
+		rullerClickedNodeInds = null;
+		redrawImage();
 	}
 	function toolsMouseDown(evt) {
 		// add new node when clicked
@@ -228,22 +250,7 @@
 				}
 				// middle mouse button
 				else if (evt.buttons === 4) {
-					// shift -> delete whole chain
-					if (evt.shiftKey) {
-						rullerNodes.splice(rullerClickedNodeInds[0], 1);
-						rullerDists.splice(rullerClickedNodeInds[0], 1);
-					}
-					// no shift -> delete clicked node
-					else {
-						rullerNodes[rullerClickedNodeInds[0]].splice(rullerClickedNodeInds[1], 1);
-						if (rullerNodes[rullerClickedNodeInds[0]].length < 2) {
-							rullerNodes.splice(rullerClickedNodeInds[0], 1);
-							rullerDists.splice(rullerClickedNodeInds[0], 1);
-						} else {
-							rullerRecalculateDistances([rullerClickedNodeInds[0], null]);
-						}
-					}
-					redrawImage();
+					deleteNode(evt.shiftKey);
 				}
 			}
 			// click somewhere else
@@ -723,10 +730,10 @@
 
 	(function initializeHotKeys() {
 		// show open file dialog
-		hotkeys('ctrl+o,esc,space,o,r,i', function (event, handler){
+		hotkeys('ctrl+o,esc,space,o,r,i,d,shift+d', function (evt, handler){
 			switch (handler.key) {
 				case 'ctrl+o':
-					event.preventDefault();
+					evt.preventDefault();
 					showOpenFileDialog();
 					break;
 				case 'esc':
@@ -742,17 +749,21 @@
 					resetOffset();
 					redrawImage();
 					break;
-				// case 'l':
-				//     toggleImgLocked();
-				//     imgLockedBeforeTool = null;
-				//     break;
 				case 'i':
 					toggleInterpolation();
 					break;
 				case 'r':
 					changeTool('ruller');
 					break;
-				default: console.log(event);
+				case 'd':
+					rullerClickedNodeInds = rullerGetHoverNode();
+					if (rullerClickedNodeInds) deleteNode();
+					break;
+				case'shift+d':
+					rullerClickedNodeInds = rullerGetHoverNode();
+					if (rullerClickedNodeInds) deleteNode(true);
+					break;
+				default: console.log(evt);
 			}
 		});
 	})();
