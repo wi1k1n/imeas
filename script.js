@@ -51,8 +51,10 @@
 	// Ruller variables
 	let rullerDragOffset = null;
 	let rullerClickedNodeInds = null;
-	let rullerSegments = [];
+	let rullerNodes = [];
 	let rullerDists = [];
+	let rullerConstrPos = {x: 0, y: 0};
+	let rullerConstrain = false;
 
 	function resetScale() {
 		imgScale = {x: 1.0, y: 1.0};
@@ -101,7 +103,7 @@
 			// initialize tool mode
 			switch (tool) {
 				case 'ruller':
-					rullerSegments = [[]];
+					rullerNodes = [[]];
 					rullerDists = [[]];
 					// toggleImgLocked(true);
 					break;
@@ -112,7 +114,7 @@
 		// turn off current tool
 		if (tool === t) {
 			if (tool === 'ruller') {
-				if (rullerSegments[rullerSegments.length - 1].length === 0) {
+				if (rullerNodes[rullerNodes.length - 1].length === 0) {
 					toolOff();
 				} else {
 					rullerActionCancel();
@@ -140,26 +142,71 @@
 			// recalc the whole chain
 			if (inds[1] === null) {
 				rullerDists[chain] = [];
-				for (let j = 0; j < rullerSegments[chain].length - 1; j++) {
-					rullerDists[chain].push(dst(rullerSegments[chain][j], rullerSegments[chain][j + 1]));
+				for (let j = 0; j < rullerNodes[chain].length - 1; j++) {
+					rullerDists[chain].push(dst(rullerNodes[chain][j], rullerNodes[chain][j + 1]));
 				}
 			} else {
 				// recalc precessor segment
 				if (node > 0) {
-					rullerDists[chain][node - 1] = dst(rullerSegments[chain][node - 1], rullerSegments[chain][node]);
+					rullerDists[chain][node - 1] = dst(rullerNodes[chain][node - 1], rullerNodes[chain][node]);
 				}
 				// recalc accessor segment
-				if (node < rullerSegments[chain].length - 1) {
-					rullerDists[chain][node] = dst(rullerSegments[chain][node], rullerSegments[chain][node + 1]);
+				if (node < rullerNodes[chain].length - 1) {
+					rullerDists[chain][node] = dst(rullerNodes[chain][node], rullerNodes[chain][node + 1]);
 				}
 			}
+		}
+	}
+	function calculateConstrainedPos() {
+		// is dragging node
+		if (rullerDragOffset) {
+			console.log('dragging with shift');
+		}
+		// selecting next node position
+		else {
+			const anglesPiHalves = [0, PIH, PI, PI + PIH, PI2];
+			const anglesPiQuarters = [0.25 * PI, 0.75 * PI, 1.25 * PI, 1.75 * PI];
+			let angles = anglesPiHalves.concat(anglesPiQuarters);
+
+			const chind = rullerNodes.length - 1;  // chain index
+			const nind = rullerNodes[chind].length - 1;
+			const n = rullerNodes[chind][nind]; // node
+			// if in state of drawing a chain
+			if (n) {
+				// there is a predecessor segment
+				if (nind > 0) {
+					// so add piHalves to predecessor's angle
+					const pn = rullerNodes[chind][nind - 1];
+					let pnAng = Math.atan2(n.y - pn.y, n.x - pn.x);
+					if (pnAng < 0) pnAng += PI2;
+					angles = angles.concat(anglesPiHalves.map(a => (a + pnAng) % PI2));
+
+				}
+				angles.sort();
+				let curAng = Math.atan2(mousePosImg.y - n.y, mousePosImg.x - n.x);
+				if (curAng < 0) curAng += PI2;
+
+				let i = 0;
+				for (; i < angles.length; i++) {
+					if (curAng < angles[i])
+						break;
+				}
+				if (!i) i = 1;
+				if (curAng - angles[i - 1] < angles[i] - curAng) i--;
+
+				const d = dst(n, mousePosImg);
+
+				rullerConstrPos.x = n.x + Math.cos(angles[i]) * d;
+				rullerConstrPos.y = n.y + Math.sin(angles[i]) * d;
+			}
+			// rullerConstrPos = mousePosImg;
 		}
 	}
 	function toolsMouseDown(evt) {
 		// add new node when clicked
 		if (tool === 'ruller') {
-			function insertNode(chain, ind) {
-				rullerSegments[chain].splice(ind, 0, mousePosImg);
+			function insertNode(chain, ind, pos) {
+				rullerNodes[chain].splice(ind, 0, {...pos});
 				rullerRecalculateDistances();
 			}
 			rullerClickedNodeInds = rullerGetHoverNode();
@@ -167,24 +214,30 @@
 			if (rullerClickedNodeInds) {
 				// left mouse button
 				if (evt.buttons === 1) {
+					// ctrl -> create new node
 					if (evt.ctrlKey) {
-						insertNode(rullerClickedNodeInds[0], rullerClickedNodeInds[1]);
+						insertNode(rullerClickedNodeInds[0], rullerClickedNodeInds[1], mousePosImg);
 						// console.log('created new node: ', rullerSegments[rullerClickedNodeInds[0][rullerClickedNodeInds[1]]]);
 						rullerDragOffset = {x: 0, y: 0};
-					} else {
-						const r = rullerSegments[rullerClickedNodeInds[0]][rullerClickedNodeInds[1]];
+					}
+					// no ctrl -> start dragging
+					else {
+						const r = rullerNodes[rullerClickedNodeInds[0]][rullerClickedNodeInds[1]];
 						rullerDragOffset = {x: (mousePos.x - imgOffset.x) / imgScale.x - r.x, y: (mousePos.y - imgOffset.y) / imgScale.y - r.y};
 					}
-				} else if (evt.buttons === 4) {
+				}
+				// middle mouse button
+				else if (evt.buttons === 4) {
+					// shift -> delete whole chain
 					if (evt.shiftKey) {
-						// console.log('delete chain');
-						rullerSegments.splice(rullerClickedNodeInds[0], 1);
+						rullerNodes.splice(rullerClickedNodeInds[0], 1);
 						rullerDists.splice(rullerClickedNodeInds[0], 1);
-					} else {
-						// console.log('delete node ', rullerClickedNodeInds);
-						rullerSegments[rullerClickedNodeInds[0]].splice(rullerClickedNodeInds[1], 1);
-						if (rullerSegments[rullerClickedNodeInds[0]].length < 2) {
-							rullerSegments.splice(rullerClickedNodeInds[0], 1);
+					}
+					// no shift -> delete clicked node
+					else {
+						rullerNodes[rullerClickedNodeInds[0]].splice(rullerClickedNodeInds[1], 1);
+						if (rullerNodes[rullerClickedNodeInds[0]].length < 2) {
+							rullerNodes.splice(rullerClickedNodeInds[0], 1);
 							rullerDists.splice(rullerClickedNodeInds[0], 1);
 						} else {
 							rullerRecalculateDistances([rullerClickedNodeInds[0], null]);
@@ -197,11 +250,15 @@
 			else {
 				// left mouse button
 				if (evt.buttons === 1) {
-					const cs = rullerSegments.length - 1;
-					rullerSegments[cs].push(mousePosImg);
-					const l = rullerSegments[cs].length - 1;
-					if (l > 0) {
-						rullerDists[cs].push(dst(rullerSegments[cs][l], rullerSegments[cs][l-1]));
+					// shift -> constrained position
+					if (evt.shiftKey) {
+						// console.log('add constrained node');
+						calculateConstrainedPos();
+						insertNode(rullerNodes.length - 1, rullerNodes[rullerNodes.length - 1].length, rullerConstrPos);
+					}
+					// no shift -> exact mouse position
+					else {
+						insertNode(rullerNodes.length - 1, rullerNodes[rullerNodes.length - 1].length, mousePosImg);
 					}
 				}
 			}
@@ -213,40 +270,62 @@
 	function toolsMouseMove(evt) {
 		// need to redraw, since with ruller cursor is moving
 		if (tool === 'ruller') {
+			// is dragging node
 			if (rullerDragOffset) {
-				rullerSegments[rullerClickedNodeInds[0]][rullerClickedNodeInds[1]].x = (evt.x - imgOffset.x) / imgScale.x - rullerDragOffset.x;
-				rullerSegments[rullerClickedNodeInds[0]][rullerClickedNodeInds[1]].y = (evt.y - imgOffset.y) / imgScale.y - rullerDragOffset.y;
+				rullerNodes[rullerClickedNodeInds[0]][rullerClickedNodeInds[1]].x = (evt.x - imgOffset.x) / imgScale.x - rullerDragOffset.x;
+				rullerNodes[rullerClickedNodeInds[0]][rullerClickedNodeInds[1]].y = (evt.y - imgOffset.y) / imgScale.y - rullerDragOffset.y;
 				rullerRecalculateDistances(rullerClickedNodeInds);
+			}
+			if (rullerConstrain) {
+				calculateConstrainedPos();
 			}
 			redrawImage();
 			updateDivTools();
 		}
 	}
 	function toolsMouseUp(evt) {
-		if (rullerDragOffset)
-			rullerRecalculateDistances(rullerClickedNodeInds);
+		if (tool === 'ruller') {
+			if (rullerDragOffset)
+				rullerRecalculateDistances(rullerClickedNodeInds);
 
-		rullerClickedNodeInds = null;
-		rullerDragOffset = null;
+			rullerClickedNodeInds = null;
+			rullerDragOffset = null;
+		}
+	}
+	function toolsKeyDown(evt) {
+		if (tool === 'ruller') {
+			// shift pressed
+			if (evt.keyCode === 16) {
+				rullerConstrain = true;
+			}
+		}
+	}
+	function toolsKeyUp(evt) {
+		if (tool === 'ruller') {
+			// shift pressed
+			if (evt.keyCode === 16) {
+				rullerConstrain = false;
+			}
+		}
 	}
 
 	function rullerActionCancel() {
 		// close current chain and push new one, if 2 and more points have been already created
-		if (rullerSegments[rullerSegments.length - 1].length > 1) {
-			rullerSegments.push([]);
+		if (rullerNodes[rullerNodes.length - 1].length > 1) {
+			rullerNodes.push([]);
 			rullerDists.push([]);
 		}
 		// cancel current chain in case there is not enough points for segment
 		else {
-			rullerSegments[rullerSegments.length - 1] = [];
+			rullerNodes[rullerNodes.length - 1] = [];
 		}
 	}
 	// returns indices of node hovered by cursor
 	function rullerGetHoverNode() {
 		let closeNode = null;  // indices of hovered node
 		let closestD = Infinity;
-		for (let j = 0; j < rullerSegments.length - 1; j++) {
-			const rs = rullerSegments[j];
+		for (let j = 0; j < rullerNodes.length - 1; j++) {
+			const rs = rullerNodes[j];
 			for (let k = 0; k < rs.length; k++) {
 				// console.log(dstm(mousePos.x, mousePos.y, rs[k].x * imgScale.x + imgOffset.x, rs[k].y * imgScale.y + imgOffset.y));
 				const d = dst(mousePos.x, mousePos.y, rs[k].x * imgScale.x + imgOffset.x, rs[k].y * imgScale.y + imgOffset.y);
@@ -273,7 +352,7 @@
 	function redrawTools() {
 		ctx.save();
 		if (tool === 'ruller') {
-			const rsl = rullerSegments[rullerSegments.length - 1];  // ruller segment last
+			const rsl = rullerNodes[rullerNodes.length - 1];  // ruller segment last
 			for (let i = 0; i < 2; i++) {
 				ctx.strokeStyle = i ? '#ffffb3' : 'black';
 				ctx.fillStyle = ctx.strokeStyle;
@@ -286,8 +365,8 @@
 
 				ctx.beginPath();
 				// draw already created segments
-				for (let j = 0; j < rullerSegments.length; j++) {
-					const rs = rullerSegments[j];
+				for (let j = 0; j < rullerNodes.length; j++) {
+					const rs = rullerNodes[j];
 					if (rs.length) {
 						ctx.moveTo(rs[0].x * imgScale.x + imgOffset.x, rs[0].y * imgScale.y + imgOffset.y);
 						for (let k = 1; k < rs.length; k++) {
@@ -300,7 +379,7 @@
 				for (let j = 0; j < rullerDists.length; j++) {
 					const cd = rullerDists[j];
 					if (!cd.length) continue;
-					const cs = rullerSegments[j];
+					const cs = rullerNodes[j];
 					for (let k = 0; k < cd.length; k++) {
 						const txt = cd[k].toFixed(1);
 						const txtm = ctx.measureText(txt);
@@ -321,17 +400,22 @@
 				}
 				
 				// draw 'live' line to mouse
+				// console.log(rsl);
 				if (rsl.length) {
 					const l = rsl.length - 1;
 					ctx.moveTo(rsl[l].x * imgScale.x + imgOffset.x, rsl[l].y * imgScale.y + imgOffset.y);
-					ctx.lineTo(mousePos.x, mousePos.y);
+					let pos = {...mousePosImg};
+					if (rullerConstrain) {
+						pos = rullerConstrPos;
+					}
+					ctx.lineTo(pos.x * imgScale.x + imgOffset.x, pos.y * imgScale.y + imgOffset.y);
 				}
 				ctx.stroke();
 				
 				// draw nodes
-				for (let j = 0; j < rullerSegments.length; j++) {
-					const rs = rullerSegments[j];
-					for (let k = 1; k < rs.length - (rsl.length && (j === rullerSegments.length-1) ? 0 : 1); k++) {
+				for (let j = 0; j < rullerNodes.length; j++) {
+					const rs = rullerNodes[j];
+					for (let k = 1; k < rs.length - (rsl.length && (j === rullerNodes.length-1) ? 0 : 1); k++) {
 						ctx.beginPath();
 						ctx.arc(rs[k].x * imgScale.x + imgOffset.x, rs[k].y * imgScale.y + imgOffset.y, nodeR, 0, PI2);
 						ctx.fill();
@@ -344,7 +428,7 @@
 				if (!cpInds) cpInds = rullerGetHoverNode();
 
 				if (cpInds) {
-					const r = rullerSegments[cpInds[0]][cpInds[1]];
+					const r = rullerNodes[cpInds[0]][cpInds[1]];
 					const cp = {x: r.x * imgScale.x + imgOffset.x, y: r.y * imgScale.y + imgOffset.y};
 					// console.log(cp);
 					// ctx.fillStyle = '#a9f0f8';  // 169 240 248
@@ -572,6 +656,12 @@
 		// preventDefaultEvents(evt);
 		return false;
 	}
+	function cnvOnKeyDown(evt) {
+		toolsKeyDown(evt);
+	}
+	function cnvOnKeyUp(evt) {
+		toolsKeyUp(evt);
+	}
 	function preventDefaultEvents(evt){
 		if (evt.preventDefault != undefined)
 			evt.preventDefault();
@@ -617,6 +707,8 @@
 		cnv.onmouseup = cnvOnMouseUp;
 		cnv.onmousemove = cnvOnMouseMove;
 		cnv.onwheel = cnvOnWheel;
+		document.onkeydown = cnvOnKeyDown;
+		document.onkeyup = cnvOnKeyUp;
 		document.oncontextmenu = preventDefaultEvents;
 		cnv.oncontextmenu = preventDefaultEvents;
 	})();
