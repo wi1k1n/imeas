@@ -10,7 +10,6 @@
 
 	const PASTEIMAGEMIMETYPES = ['image/png', 'image/jpeg', 'image/bmp'];
 
-	const RULLERCURSORR = 1;
 	const RULLERNODEHOVERR = 8;
 	const RULLERNODEMARKSIZE = 4;
 
@@ -18,7 +17,6 @@
 	const PI2 = Math.PI * 2;
 	const ZOOMMLTIN = ZOOMMLT;
 	const ZOOMMLTOUT = 1. / ZOOMMLT;
-	const RULLERNODEMARKSIZEHALF = RULLERNODEMARKSIZE / 2;
 
 	const cnv = document.getElementById('cnv_editor');
 	const ctx = cnv.getContext ? cnv.getContext('2d') : null;
@@ -47,11 +45,10 @@
 	let tool = null;
 	// let imgLockedBeforeTool = null;
 	// Ruller variables
-	let rullerDragOffset = {x: 0, y: 0};
-	let rullerDraggingInds = null;
+	let rullerDragOffset = null;
+	let rullerClickedNodeInds = null;
 	let rullerSegments = [];
 	let rullerDists = [];
-	// let rullerDistsCumul = [];
 
 	function resetScale() {
 		imgScale = {x: 1.0, y: 1.0};
@@ -102,7 +99,6 @@
 				case 'ruller':
 					rullerSegments = [[]];
 					rullerDists = [[]];
-					// rullerDistsCumul = [[]];
 					// toggleImgLocked(true);
 					break;
 				default: 
@@ -132,38 +128,64 @@
 		redrawImage();
 	}
 	function rullerRecalculateDistances(inds) {
-		const chain = inds[0], node = inds[1];
-		let startNode = node;
-		// recalc precessor segment
-		if (node > 0) {
-			rullerDists[chain][node - 1] = dst(rullerSegments[chain][node - 1], rullerSegments[chain][node]);
-			startNode = node - 1;
-		}
-		// recalc accessor segment
-		if (node < rullerSegments[chain].length - 1) {
-			rullerDists[chain][node] = dst(rullerSegments[chain][node], rullerSegments[chain][node + 1]);
+		inds = inds ?? [null, null];
+		const chainFrom = inds[0] ?? 0, node = inds[1] ?? 0;
+		const chainTo = inds[0] === null ? rullerDists.length : (chainFrom + 1);
+		for (let i = chainFrom; i < chainTo; i++) {
+			const chain = i;
+			// recalc the whole chain
+			if (inds[1] === null) {
+				rullerDists[chain] = [];
+				for (let j = 0; j < rullerSegments[chain].length - 1; j++) {
+					rullerDists[chain].push(dst(rullerSegments[chain][j], rullerSegments[chain][j + 1]));
+				}
+			} else {
+				// recalc precessor segment
+				if (node > 0) {
+					rullerDists[chain][node - 1] = dst(rullerSegments[chain][node - 1], rullerSegments[chain][node]);
+				}
+				// recalc accessor segment
+				if (node < rullerSegments[chain].length - 1) {
+					rullerDists[chain][node] = dst(rullerSegments[chain][node], rullerSegments[chain][node + 1]);
+				}
+			}
 		}
 	}
 	function toolsMouseDown(evt) {
 		// add new node when clicked
 		if (tool === 'ruller') {
-			// left mouse buttom
-			if (evt.buttons === 1) {
-				// click on node
-				rullerDraggingInds = rullerGetHoverNode();
-				if (rullerDraggingInds) {
-					// console.log(rullerDraggingInds, ' node clicked!');
-					const r = rullerSegments[rullerDraggingInds[0]][rullerDraggingInds[1]];
-					rullerDragOffset = {x: (mousePos.x - imgOffset.x) / imgScale.x - r.x, y: (mousePos.y - imgOffset.y) / imgScale.y - r.y};
-					// console.log(rullerDragOffset);
-				} else {
+			rullerClickedNodeInds = rullerGetHoverNode();
+			// click on node
+			if (rullerClickedNodeInds) {
+				// left mouse button
+				if (evt.buttons === 1) {
+					if (evt.ctrlKey) {
+						console.log('create new node');
+					} else {
+						const r = rullerSegments[rullerClickedNodeInds[0]][rullerClickedNodeInds[1]];
+						rullerDragOffset = {x: (mousePos.x - imgOffset.x) / imgScale.x - r.x, y: (mousePos.y - imgOffset.y) / imgScale.y - r.y};
+					}
+				} else if (evt.buttons === 4) {
+					console.log('delete node ', rullerClickedNodeInds);
+					rullerSegments[rullerClickedNodeInds[0]].splice(rullerClickedNodeInds[1], 1);
+					if (rullerSegments[rullerClickedNodeInds[0]].length < 2) {
+						rullerSegments.splice(rullerClickedNodeInds[0], 1);
+						rullerDists.splice(rullerClickedNodeInds[0], 1);
+					} else {
+						rullerRecalculateDistances([rullerClickedNodeInds[0], null]);
+					}
+					redrawImage();
+				}
+			}
+			// click somewhere else
+			else {
+				// left mouse button
+				if (evt.buttons === 1) {
 					const cs = rullerSegments.length - 1;
 					rullerSegments[cs].push(mousePosImg);
 					const l = rullerSegments[cs].length - 1;
 					if (l > 0) {
-						let d = dst(rullerSegments[cs][l], rullerSegments[cs][l-1]);
-						rullerDists[cs].push(d);
-						// rullerDistsCumul[cs].push(d + (rullerDistsCumul[cs].length > 0 ? rullerDistsCumul[cs][l - 2] : 0)); 
+						rullerDists[cs].push(dst(rullerSegments[cs][l], rullerSegments[cs][l-1]));
 					}
 				}
 			}
@@ -175,18 +197,21 @@
 	function toolsMouseMove(evt) {
 		// need to redraw, since with ruller cursor is moving
 		if (tool === 'ruller') {
-			if (rullerDraggingInds) {
-				rullerSegments[rullerDraggingInds[0]][rullerDraggingInds[1]].x = (evt.x - imgOffset.x) / imgScale.x - rullerDragOffset.x;
-				rullerSegments[rullerDraggingInds[0]][rullerDraggingInds[1]].y = (evt.y - imgOffset.y) / imgScale.y - rullerDragOffset.y;
+			if (rullerDragOffset) {
+				rullerSegments[rullerClickedNodeInds[0]][rullerClickedNodeInds[1]].x = (evt.x - imgOffset.x) / imgScale.x - rullerDragOffset.x;
+				rullerSegments[rullerClickedNodeInds[0]][rullerClickedNodeInds[1]].y = (evt.y - imgOffset.y) / imgScale.y - rullerDragOffset.y;
+				rullerRecalculateDistances(rullerClickedNodeInds);
 			}
 			redrawImage();
 			updateDivTools();
 		}
 	}
 	function toolsMouseUp(evt) {
-		if (rullerDraggingInds)
-			rullerRecalculateDistances(rullerDraggingInds);
-		rullerDraggingInds = null;
+		if (rullerDragOffset)
+			rullerRecalculateDistances(rullerClickedNodeInds);
+
+		rullerClickedNodeInds = null;
+		rullerDragOffset = null;
 	}
 
 	function rullerActionCancel() {
@@ -194,7 +219,6 @@
 		if (rullerSegments[rullerSegments.length - 1].length > 1) {
 			rullerSegments.push([]);
 			rullerDists.push([]);
-			// rullerDistsCumul.push([]);
 		}
 		// cancel current chain in case there is not enough points for segment
 		else {
@@ -267,7 +291,8 @@
 			}
 			if (rsl.length === 0) {
 				// determine if cursor is close enough to one of nodes
-				const cpInds = rullerGetHoverNode();
+				let cpInds = rullerDragOffset ? rullerClickedNodeInds : null;
+				if (!cpInds) cpInds = rullerGetHoverNode();
 
 				if (cpInds) {
 					const r = rullerSegments[cpInds[0]][cpInds[1]];
@@ -287,13 +312,12 @@
 					ctx.fill();
 					ctx.globalAlpha = 1.0;
 					ctx.stroke();
-				} else {
-					// draw cursor
-					ctx.fillStyle = 'yellow';
-					ctx.beginPath();
-					ctx.arc(mousePos.x, mousePos.y, RULLERCURSORR, 0, PI2);
-					ctx.fill();
 				}
+				// // draw cursor
+				// ctx.fillStyle = 'yellow';
+				// ctx.beginPath();
+				// ctx.arc(mousePos.x, mousePos.y, RULLERCURSORR, 0, PI2);
+				// ctx.fill();
 			}
 		}
 		ctx.restore();
@@ -391,15 +415,14 @@
 		divImgInfo.innerHTML = isize + ' | ' + iscale;
 	}
 	function updateDivTools() {
+		// TODO: calculate to current point
 		let res = '';
 		for (let i = rullerDists.length-1; i >= 0; i--) {
 			if (rullerDists[i].length) {
 				res += (i+1)+': '+(rullerDists[i].reduce((a, e) => a + e)).toFixed(2)+'<br>';
 			}
 		}
-		if (res) {
-			divToolsDistance.innerHTML = res.substring(0, res.length - 4);
-		}
+		divToolsDistance.innerHTML = res.substring(0, res.length - 4);
 	}
 
 	// // (un)lock image from moving/zooming
@@ -525,18 +548,20 @@
 		document.getElementById('inp_file').onchange = inp_fileOnChange;
 		// listen to paste event
 		window.addEventListener("paste", function(evt) {
+			// console.log(evt.clipboardData.getData('image/png'));
 			navigator.clipboard.read().then(cis => {
 				for (const ci of cis) {
 					// console.log(ci);
 					for (const type of ci.types) {
 						if (!PASTEIMAGEMIMETYPES.includes(type)) continue;
+						// console.log('Trying type ', type);
 						ci.getType(type).then(x => {
-							// console.log(x);
+							// console.log('Got: ', x);
 							img.src = URL.createObjectURL(x);
-						}).catch(e => null);
+						}).catch(e => console.log('getType() => ', e));
 					}
 				}
-			}).catch(e => null);
+			}).catch(e => console.log('read() =>', e));
 		}, false);
 
 		cnv.onmousedown = cnvOnMouseDown;
