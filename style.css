@@ -31,6 +31,10 @@ body {
     left: 0px;
     bottom: 0px;
 }
+.info-help {
+    right: 0px;
+    bottom: 0px;
+}
 .info-tools {
     left: 50%;
     bottom: 0px;
@@ -46,4 +50,8 @@ body {
 #divToolsDistance {
     text-align: left;
     float: left;
+}
+
+.help-table tr td:first-child {
+    text-align: right;
 }

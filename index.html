@@ -2,18 +2,21 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <!-- Alertify -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/alertifyjs@1.13.1/build/css/alertify.min.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/alertifyjs@1.13.1/build/css/themes/default.min.css"/>
     <link rel="stylesheet" href="style.css"/>
-
-    <title>Imgeas</title>
+    <title>IMeas</title>
 </head>
 <body>
-<input type="file" id="inp_file" style="display: none;" accept=".jpg, .jpeg, .png">
+<input type="file" id="inp_file" style="display: none;" accept=".jpg, .jpeg, .png, .bmp">
 <div id="div_canvas">
     <canvas id="cnv_editor">HTML5 Canvas is not supported in your browser</canvas>
 </div>
 <div id="divDebug" class="info info-debug hidden"></div>
 <div id="divMousePos" class="info info-mouse"></div>
 <div id="divImgInfo" class="info info-img"></div>
+<div id="divHelp" class="info info-help">?</div>
 <div id="divTools" class="info info-tools hidden">
     <i>Mesured distance</i><br>
     <span id="divToolsDistance"></span>
@@ -22,6 +25,8 @@
 <script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" integrity="sha256-pasqAKBDmFT4eHoN2ndd6lN370kFiGUFyTiUHWhU7k8=" crossorigin="anonymous"></script>
 <!-- Hotkeys -->
 <script src="https://unpkg.com/hotkeys-js/dist/hotkeys.min.js"></script>
+<!-- Alertify -->
+<script src="https://cdn.jsdelivr.net/npm/alertifyjs@1.13.1/build/alertify.min.js"></script>
 <script src="script.js"></script>
 </body>
 </html>
