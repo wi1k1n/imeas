@@ -734,6 +734,7 @@
 	}
 	function showHelpMessage() {
 		const helpMessage = `<table class="help-table">
+<tr><td><b>ctrl + o</b></td><td> - load image from disk</td></tr>
 <tr><td><b>RMB</b></td><td> - drag image</td></tr>
 <tr><td><b>wheel</b></td><td> - zoom to cursor</td></tr>
 <tr><td><b>alt + wheel</b></td><td> - zoom to center</td></tr>
