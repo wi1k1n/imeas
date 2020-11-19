@@ -14,6 +14,8 @@
 	const RULLERNODEMARKSIZE = 4;
 	const RULLERLABELPADDINGX = 6;
 	const RULLERLABELPADDINGy = 4;
+	const RULLERANGLERADIUSMIN = 2;
+	const RULLERANGLERADIUSMAX = 10;
 
 	
 	const PI = Math.PI;
@@ -57,6 +59,7 @@
 	let rullerDists = [];
 	let rullerConstrPos = {x: 0, y: 0};
 	let rullerConstrain = false;
+	let rullerAngleState = 1;  // 1 - draw only first angle if only 2 edges, 0 - do not draw angles, 2 - draw all angles
 
 	function resetScale() {
 		imgScale = {x: 1.0, y: 1.0};
@@ -420,6 +423,59 @@
 					for (let k = 0; k < cd.length; k++) {
 						if (!drawTextOnEdge(cc[k], cc[k + 1], cd[k]))
 							continue;
+					}
+				}
+				
+				// draw angles
+				if (rullerAngleState) {
+					function getDistInPix(v) {
+						// returns distance of vector (given in image coordinates) in pixels
+						return Math.sqrt(Math.pow(v.x * imgScale.x, 2) + Math.pow(v.y * imgScale.y, 2));
+					}
+					function drawAngle(n1, n2, n3) {
+						const v1 = {x: n2.x - n1.x, y: n2.y - n1.y};
+						const v2 = {x: n3.x - n2.x, y: n3.y - n2.y};
+						if (Math.min(getDistInPix(v1), getDistInPix(v2)) < RULLERANGLERADIUSMIN)
+							return;
+						let ang = atan2(v2.y, v2.x) - atan2(v1.y, v1.x);
+						if (ang < 0) ang += PI2;
+						
+						const txt = ang.toFixed(0);
+						const txtm = ctx.measureText(txt);
+						const r0 = n2;
+						// if (txtm.width + RULLERLABELPADDINGX * 2 > d * imgScale.x) return false;
+						// const r1 = node2;
+						// const ox = (r0.x + r1.x) / 2 * imgScale.x + imgOffset.x;
+						// const oy = (r0.y + r1.y) / 2 * imgScale.y + imgOffset.y;
+						ctx.save();
+						// ctx.translate(ox, oy);
+						// let ang = Math.atan2(r1.y - r0.y, r1.x - r0.x);
+						// if (Math.abs(ang) > PIH) ang -= PI;
+						// ctx.rotate(ang);
+						if (i) ctx.fillText(txt, -txtm.width / 2, -4);
+						else ctx.strokeText(txt, -txtm.width / 2, -4);
+						ctx.restore();
+
+						return;
+					}
+					// only draw angle if current chain contains only 2 edges
+					if (rullerAngleState == 1) {
+						for (let j = 0; j < rullerDists.length; j++) {
+							// const cc = rullerNodes[j];  // current chain
+							// if (cc.length !== 3) continue;
+							// drawAngle(cc[0], cc[1], cc[2]);
+						}
+					} else {
+						console.warn("not implemented yet!");
+						// for (let j = 0; j < rullerDists.length; j++) {
+						// 	const cc = rullerNodes[j];  // current chain
+						// 	if (cc.length !== 3) continue;
+						// 	for (let k = 1; k < cc.length - 1; k++) {
+						// 		// reject too small segments
+						// 		if (rullerDists[j] * imgScale.x)
+						// 		drawAngle(cc[k - 1], cc[k], cc[k + 1]);
+						// 	}
+						// }
 					}
 				}
 				
