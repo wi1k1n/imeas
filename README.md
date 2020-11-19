@@ -3,3 +3,4 @@ TODO list:
 - Drag&Drop on MMB as well as RMB
 - Magnifier
 - Cursor grid to stick to image pixels
+- Handle onWindowResize event
