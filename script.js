@@ -425,6 +425,12 @@
 							continue;
 					}
 				}
+
+				// get position of cursor to draw live line to (not mousePos, since can be e.g. constrained)
+				let livePos = {...mousePosImg};
+				if (rullerConstrain) {
+					livePos = rullerConstrPos;
+				}
 				
 				// draw angles
 				if (rullerAngleState) {
@@ -432,21 +438,26 @@
 						// returns distance of vector (given in image coordinates) in pixels
 						return Math.sqrt(Math.pow(v.x * imgScale.x, 2) + Math.pow(v.y * imgScale.y, 2));
 					}
+					// n123 - consequent nodes
 					function drawAngle(n1, n2, n3) {
-						const v1 = {x: n2.x - n1.x, y: n2.y - n1.y};
+						const v1 = {x: n1.x - n2.x, y: n1.y - n2.y};
 						const v2 = {x: n3.x - n2.x, y: n3.y - n2.y};
 						if (Math.min(getDistInPix(v1), getDistInPix(v2)) < RULLERANGLERADIUSMIN)
 							return;
-						let ang = atan2(v2.y, v2.x) - atan2(v1.y, v1.x);
+						let ang = Math.atan2(v2.y, v2.x) - Math.atan2(v1.y, v1.x);
 						if (ang < 0) ang += PI2;
+						ang *= 180 / PI;
 						
 						const txt = ang.toFixed(0);
+						// console.log(txt);
+
 						const txtm = ctx.measureText(txt);
 						const r0 = n2;
 						// if (txtm.width + RULLERLABELPADDINGX * 2 > d * imgScale.x) return false;
-						// const r1 = node2;
-						// const ox = (r0.x + r1.x) / 2 * imgScale.x + imgOffset.x;
-						// const oy = (r0.y + r1.y) / 2 * imgScale.y + imgOffset.y;
+						const RAD = 5;
+						const r1 = node2;
+						const ox = (r0.x + r1.x) / 2 * imgScale.x + imgOffset.x;
+						const oy = (r0.y + r1.y) / 2 * imgScale.y + imgOffset.y;
 						ctx.save();
 						// ctx.translate(ox, oy);
 						// let ang = Math.atan2(r1.y - r0.y, r1.x - r0.x);
@@ -461,9 +472,14 @@
 					// only draw angle if current chain contains only 2 edges
 					if (rullerAngleState == 1) {
 						for (let j = 0; j < rullerDists.length; j++) {
-							// const cc = rullerNodes[j];  // current chain
-							// if (cc.length !== 3) continue;
-							// drawAngle(cc[0], cc[1], cc[2]);
+							const cc = rullerNodes[j];  // current chain
+							if (cc.length === 2) {
+								// draw angle from current segment to mouse
+								drawAngle(cc[0], cc[1], livePos);
+							} else if (cc.length == 3) {
+								// draw angle for 0th and 1st segments
+								drawAngle(cc[0], cc[1], cc[2]);
+							}
 						}
 					} else {
 						console.warn("not implemented yet!");
@@ -483,12 +499,8 @@
 				if (rsl.length) {
 					const l = rsl.length - 1;
 					ctx.moveTo(rsl[l].x * imgScale.x + imgOffset.x, rsl[l].y * imgScale.y + imgOffset.y);
-					let pos = {...mousePosImg};
-					if (rullerConstrain) {
-						pos = rullerConstrPos;
-					}
-					ctx.lineTo(pos.x * imgScale.x + imgOffset.x, pos.y * imgScale.y + imgOffset.y);
-					drawTextOnEdge(rsl[l], pos);
+					ctx.lineTo(livePos.x * imgScale.x + imgOffset.x, livePos.y * imgScale.y + imgOffset.y);
+					drawTextOnEdge(rsl[l], livePos);
 				}
 				ctx.stroke();
 				
