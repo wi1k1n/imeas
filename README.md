@@ -5,3 +5,4 @@ TODO list:
 - Show perpendicular sign, when constrained 2 b perpendicular to previous edge
 - Cursor grid to stick to image pixels
 - Handle onWindowResize event
+- Make it possible to continue chain (from both sides)
