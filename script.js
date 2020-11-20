@@ -371,149 +371,173 @@
 	function redrawTools() {
 		ctx.save();
 		if (tool === 'ruller') {
-			const rsl = rullerNodes[rullerNodes.length - 1];  // ruller segment last
-			for (let i = 0; i < 2; i++) {
-				ctx.strokeStyle = i ? '#ffffb3' : 'black';
-				ctx.fillStyle = ctx.strokeStyle;
-				ctx.lineWidth = i ? 1.0 : 2.8;
-				const nodeR = i ? 1.3 : 2.2;
-				ctx.font = '10px sans serif';
-				ctx.lineCap = 'round';
-				ctx.lineJoin = 'round';
-				// ctx.globalCompositeOperation = 'exclusion';
+			redrawRuller();
+		}
+		ctx.restore();
+	}
 
-				ctx.beginPath();
-				// draw already created segments
-				for (let j = 0; j < rullerNodes.length; j++) {
-					const rs = rullerNodes[j];
-					if (rs.length) {
-						ctx.moveTo(rs[0].x * imgScale.x + imgOffset.x, rs[0].y * imgScale.y + imgOffset.y);
-						for (let k = 1; k < rs.length; k++) {
-							ctx.lineTo(rs[k].x * imgScale.x + imgOffset.x, rs[k].y * imgScale.y + imgOffset.y);
-						}
-					}
-				}
-				
-				// draw distance labels
-				function drawTextOnEdge(node1, node2, d) {
-					// takes 2 nodes, and tries to draw text on it. returns true, if succeeded, false o/w
-					d = d ?? dst(node1, node2);
+	function redrawRuller() {
+		const rsl = rullerNodes[rullerNodes.length - 1];  // ruller segment last
+		// iterate twice for background and stroke style
+		for (let i = 0; i < 2; i++) {
+			// prepares the context variables to be drawn as ruller
+			
+			ctx.strokeStyle = i ? '#ffffb3' : 'black';
+			ctx.fillStyle = ctx.strokeStyle;
+			ctx.lineWidth = i ? 1.0 : 2.8;
+			const nodeR = i ? 1.3 : 2.2;
+			ctx.font = '10px sans serif';
+			ctx.lineCap = 'round';
+			ctx.lineJoin = 'round';
+			// ctx.globalCompositeOperation = 'exclusion';
 
-					const txt = d.toFixed(1);
-					const txtm = ctx.measureText(txt);
-					const r0 = node1;
-					if (txtm.width + RULLERLABELPADDINGX * 2 > d * imgScale.x) return false;
-					const r1 = node2;
-					const ox = (r0.x + r1.x) / 2 * imgScale.x + imgOffset.x;
-					const oy = (r0.y + r1.y) / 2 * imgScale.y + imgOffset.y;
-					ctx.save();
-					ctx.translate(ox, oy);
-					let ang = Math.atan2(r1.y - r0.y, r1.x - r0.x);
-					if (Math.abs(ang) > PIH) ang -= PI;
-					ctx.rotate(ang);
-					if (i) ctx.fillText(txt, -txtm.width / 2, -4);
-					else ctx.strokeText(txt, -txtm.width / 2, -4);
-					ctx.restore();
-					return true;
-				}
-				for (let j = 0; j < rullerDists.length; j++) {
-					const cd = rullerDists[j];  // current distance
-					if (!cd.length) continue;
-					const cc = rullerNodes[j];  // current chain
-					for (let k = 0; k < cd.length; k++) {
-						if (!drawTextOnEdge(cc[k], cc[k + 1], cd[k]))
-							continue;
-					}
-				}
 
-				// get position of cursor to draw live line to (not mousePos, since can be e.g. constrained)
-				let livePos = {...mousePosImg};
-				if (rullerConstrain) {
-					livePos = rullerConstrPos;
-				}
-				
-				// draw angles
-				if (rullerAngleState) {
-					function getDistInPix(v) {
-						// returns distance of vector (given in image coordinates) in pixels
-						return Math.sqrt(Math.pow(v.x * imgScale.x, 2) + Math.pow(v.y * imgScale.y, 2));
-					}
-					// n123 - consequent nodes
-					function drawAngle(n1, n2, n3) {
-						const v1 = {x: n1.x - n2.x, y: n1.y - n2.y};
-						const v2 = {x: n3.x - n2.x, y: n3.y - n2.y};
-						if (Math.min(getDistInPix(v1), getDistInPix(v2)) < RULLERANGLERADIUSMIN)
-							return;
-						let ang = Math.atan2(v2.y, v2.x) - Math.atan2(v1.y, v1.x);
-						if (ang < 0) ang += PI2;
-						ang *= 180 / PI;
-						
-						const txt = ang.toFixed(0);
-						// console.log(txt);
-
-						const txtm = ctx.measureText(txt);
-						const r0 = n2;
-						// if (txtm.width + RULLERLABELPADDINGX * 2 > d * imgScale.x) return false;
-						const RAD = 5;
-						const r1 = node2;
-						const ox = (r0.x + r1.x) / 2 * imgScale.x + imgOffset.x;
-						const oy = (r0.y + r1.y) / 2 * imgScale.y + imgOffset.y;
-						ctx.save();
-						// ctx.translate(ox, oy);
-						// let ang = Math.atan2(r1.y - r0.y, r1.x - r0.x);
-						// if (Math.abs(ang) > PIH) ang -= PI;
-						// ctx.rotate(ang);
-						if (i) ctx.fillText(txt, -txtm.width / 2, -4);
-						else ctx.strokeText(txt, -txtm.width / 2, -4);
-						ctx.restore();
-
-						return;
-					}
-					// only draw angle if current chain contains only 2 edges
-					if (rullerAngleState == 1) {
-						for (let j = 0; j < rullerDists.length; j++) {
-							const cc = rullerNodes[j];  // current chain
-							if (cc.length === 2) {
-								// draw angle from current segment to mouse
-								drawAngle(cc[0], cc[1], livePos);
-							} else if (cc.length == 3) {
-								// draw angle for 0th and 1st segments
-								drawAngle(cc[0], cc[1], cc[2]);
-							}
-						}
-					} else {
-						console.warn("not implemented yet!");
-						// for (let j = 0; j < rullerDists.length; j++) {
-						// 	const cc = rullerNodes[j];  // current chain
-						// 	if (cc.length !== 3) continue;
-						// 	for (let k = 1; k < cc.length - 1; k++) {
-						// 		// reject too small segments
-						// 		if (rullerDists[j] * imgScale.x)
-						// 		drawAngle(cc[k - 1], cc[k], cc[k + 1]);
-						// 	}
-						// }
-					}
-				}
-				
-				// draw 'live' line to mouse
-				if (rsl.length) {
-					const l = rsl.length - 1;
-					ctx.moveTo(rsl[l].x * imgScale.x + imgOffset.x, rsl[l].y * imgScale.y + imgOffset.y);
-					ctx.lineTo(livePos.x * imgScale.x + imgOffset.x, livePos.y * imgScale.y + imgOffset.y);
-					drawTextOnEdge(rsl[l], livePos);
-				}
-				ctx.stroke();
-				
-				// draw nodes
-				for (let j = 0; j < rullerNodes.length; j++) {
-					const rs = rullerNodes[j];
-					for (let k = 1; k < rs.length - (rsl.length && (j === rullerNodes.length-1) ? 0 : 1); k++) {
-						ctx.beginPath();
-						ctx.arc(rs[k].x * imgScale.x + imgOffset.x, rs[k].y * imgScale.y + imgOffset.y, nodeR, 0, PI2);
-						ctx.fill();
+			ctx.beginPath();
+			// draw already created segments
+			for (let j = 0; j < rullerNodes.length; j++) {
+				const rs = rullerNodes[j];
+				if (rs.length) {
+					ctx.moveTo(rs[0].x * imgScale.x + imgOffset.x, rs[0].y * imgScale.y + imgOffset.y);
+					for (let k = 1; k < rs.length; k++) {
+						ctx.lineTo(rs[k].x * imgScale.x + imgOffset.x, rs[k].y * imgScale.y + imgOffset.y);
 					}
 				}
 			}
+			ctx.stroke();
+			
+			// draw distance labels
+			function drawTextOnEdge(node1, node2, d) {
+				// takes 2 nodes, and tries to draw text on it. returns true, if succeeded, false o/w
+				d = d ?? dst(node1, node2);
+
+				const txt = d.toFixed(1);
+				const txtm = ctx.measureText(txt);
+				const r0 = node1;
+				if (txtm.width + RULLERLABELPADDINGX * 2 > d * imgScale.x) return false;
+				const r1 = node2;
+				const ox = (r0.x + r1.x) / 2 * imgScale.x + imgOffset.x;
+				const oy = (r0.y + r1.y) / 2 * imgScale.y + imgOffset.y;
+				ctx.save();
+				ctx.translate(ox, oy);
+				let ang = Math.atan2(r1.y - r0.y, r1.x - r0.x);
+				if (Math.abs(ang) > PIH) ang -= PI;
+				ctx.rotate(ang);
+				if (i) ctx.fillText(txt, -txtm.width / 2, -4);
+				else ctx.strokeText(txt, -txtm.width / 2, -4);
+				ctx.restore();
+				return true;
+			}
+			
+			// ctx.beginPath();
+			for (let j = 0; j < rullerDists.length; j++) {
+				const cd = rullerDists[j];  // current distance
+				if (!cd.length) continue;
+				const cc = rullerNodes[j];  // current chain
+				for (let k = 0; k < cd.length; k++) {
+					if (!drawTextOnEdge(cc[k], cc[k + 1], cd[k]))
+						continue;
+				}
+			}
+
+			// get position of cursor to draw live line to (not mousePos, since can be e.g. constrained)
+			let livePos = {...mousePosImg};
+			if (rullerConstrain) {
+				livePos = rullerConstrPos;
+			}
+			
+			// draw angles
+			if (rullerAngleState) {
+				function getDistInPix(v) {
+					// returns distance of vector (given in image coordinates) in pixels
+					return Math.sqrt(Math.pow(v.x * imgScale.x, 2) + Math.pow(v.y * imgScale.y, 2));
+				}
+				// n123 - consequent nodes
+				function drawAngle(n1, n2, n3) {
+					const v1 = {x: n1.x - n2.x, y: n1.y - n2.y};
+					const v2 = {x: n3.x - n2.x, y: n3.y - n2.y};
+					if (Math.min(getDistInPix(v1), getDistInPix(v2)) < RULLERANGLERADIUSMIN)
+						return;
+					const a1 = Math.atan2(v1.y, v1.x);
+					const a2 = Math.atan2(v2.y, v2.x);
+					let ang = a2 - a1;
+					if (ang < 0) ang += PI2;
+					ang *= 180 / PI;
+					
+					const txt = ang.toFixed(0);
+					const txtm = ctx.measureText(txt);
+					
+					const RAD = 10;
+
+					ctx.save();
+					ctx.arc(n2.x * imgScale.x + imgOffset.x, n2.y * imgScale.y + imgOffset.y, RAD, a1, a2);
+					// ctx.stroke();
+					// const r0 = n2;
+					// if (txtm.width + RULLERLABELPADDINGX * 2 > d * imgScale.x) return false;
+					// const r1 = node2;
+					// const ox = (r0.x + r1.x) / 2 * imgScale.x + imgOffset.x;
+					// const oy = (r0.y + r1.y) / 2 * imgScale.y + imgOffset.y;
+					// ctx.translate(ox, oy);
+					// let ang = Math.atan2(r1.y - r0.y, r1.x - r0.x);
+					// if (Math.abs(ang) > PIH) ang -= PI;
+					// ctx.rotate(ang);
+					// if (i) ctx.fillText(txt, -txtm.width / 2, -4);
+					// else ctx.strokeText(txt, -txtm.width / 2, -4);
+					ctx.restore();
+
+					return;
+				}
+
+				ctx.beginPath();
+				// only draw angle if current chain contains only 2 edges
+				if (rullerAngleState == 1) {
+					for (let j = 0; j < rullerDists.length; j++) {
+						const cc = rullerNodes[j];  // current chain
+						if (cc.length === 2) {
+							// draw angle from current segment to mouse
+							drawAngle(cc[0], cc[1], livePos);
+						} else if (cc.length == 3) {
+							// draw angle for 0th and 1st segments
+							drawAngle(cc[0], cc[1], cc[2]);
+						}
+					}
+				} else {
+					console.warn("not implemented yet!");
+					// for (let j = 0; j < rullerDists.length; j++) {
+					// 	const cc = rullerNodes[j];  // current chain
+					// 	if (cc.length !== 3) continue;
+					// 	for (let k = 1; k < cc.length - 1; k++) {
+					// 		// reject too small segments
+					// 		if (rullerDists[j] * imgScale.x)
+					// 		drawAngle(cc[k - 1], cc[k], cc[k + 1]);
+					// 	}
+					// }
+				}
+				ctx.stroke();
+			}
+			
+			// draw 'live' line to mouse
+			if (rsl.length) {
+				ctx.beginPath();
+
+				const l = rsl.length - 1;
+				ctx.moveTo(rsl[l].x * imgScale.x + imgOffset.x, rsl[l].y * imgScale.y + imgOffset.y);
+				ctx.lineTo(livePos.x * imgScale.x + imgOffset.x, livePos.y * imgScale.y + imgOffset.y);
+				drawTextOnEdge(rsl[l], livePos);
+
+				ctx.stroke();
+			}
+		
+			// draw nodes
+			for (let j = 0; j < rullerNodes.length; j++) {
+				const rs = rullerNodes[j];
+				for (let k = 1; k < rs.length - (rsl.length && (j === rullerNodes.length-1) ? 0 : 1); k++) {
+					ctx.beginPath();
+					ctx.arc(rs[k].x * imgScale.x + imgOffset.x, rs[k].y * imgScale.y + imgOffset.y, nodeR, 0, PI2);
+					ctx.fill();
+				}
+			}
+
+			// if no live line needed (current segment cancelled)
 			if (rsl.length === 0) {
 				// determine if cursor is close enough to one of nodes
 				let cpInds = rullerDragOffset ? rullerClickedNodeInds : null;
@@ -545,7 +569,6 @@
 				// ctx.fill();
 			}
 		}
-		ctx.restore();
 	}
 
 	// most probably useless ¯\_(ツ)_/¯
