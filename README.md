@@ -6,3 +6,6 @@ TODO list:
 - Cursor grid to stick to image pixels
 - Handle onWindowResize event
 - Make it possible to continue chain (from both sides)
+- Color picker
+- Close chain on hotkey (draw it as dotted line)
+    - Show angles and perimeter/square in details information (like inspect in fusion 360)
