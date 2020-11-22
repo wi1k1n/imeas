@@ -1,21 +1,24 @@
 (function() {
 	const DEBUG = false;
 
-	const IMGMAXWIDTH = 8192;
-	const IMGMAXHEIGHT = 8192;
+	const IMGMAXWIDTH = 16384;
+	const IMGMAXHEIGHT = 16384;
 	const IMGMINWIDTH = 8;
 	const IMGMINHEIGHT = 8;
 	const DRAGMINDST = 1;  // minimum distance (manhattan) at which drag detection starts
 	const ZOOMMLT = 1.1;
+	const GRIDMINSIZE = 10; // minimum scale size, when grid appears
+	const GRIDPOINTSIZE = 1.5;
 
 	const PASTEIMAGEMIMETYPES = ['image/png', 'image/jpeg', 'image/bmp'];
 
 	const RULLERNODEHOVERR = 8;
 	const RULLERNODEMARKSIZE = 4;
 	const RULLERLABELPADDINGX = 6;
-	const RULLERLABELPADDINGy = 4;
-	const RULLERANGLERADIUSMIN = 2;
-	const RULLERANGLERADIUSMAX = 10;
+	const RULLERLABELPADDINGY = 4;
+	const RULLERANGLERADIUS = 12;
+	const RULLERPERPENDICULARSIZE = 10;
+	const RULLERCURSORR = 1;
 
 	
 	const PI = Math.PI;
@@ -50,6 +53,7 @@
 
 	// let imgLocked = false;  // if user can move/zoom image
 	let imgBorder = true;
+	let imgGridStyle = 1; // 0 - no grid, 1 - sqaure grid, 2 - dot grid
 	let tool = null;
 	// let imgLockedBeforeTool = null;
 	// Ruller variables
@@ -135,7 +139,12 @@
 			toolOn();
 		}
 
-
+		redrawImage();
+	}
+	function changeGridStyle() {
+		imgGridStyle++;
+		// if (imgGridStyle >= 3) imgGridStyle = 0;
+		if (imgGridStyle >= 2) imgGridStyle = 0;
 		redrawImage();
 	}
 	function rullerRecalculateDistances(inds) {
@@ -278,6 +287,7 @@
 		updateDivTools();
 	}
 	function toolsMouseClick(evt) {
+		redrawImage();
 	}
 	function toolsMouseMove(evt) {
 		// need to redraw, since with ruller cursor is moving
@@ -378,6 +388,7 @@
 
 	function redrawRuller() {
 		const rsl = rullerNodes[rullerNodes.length - 1];  // ruller segment last
+
 		// iterate twice for background and stroke style
 		for (let i = 0; i < 2; i++) {
 			// prepares the context variables to be drawn as ruller
@@ -389,8 +400,7 @@
 			ctx.font = '10px sans serif';
 			ctx.lineCap = 'round';
 			ctx.lineJoin = 'round';
-			// ctx.globalCompositeOperation = 'exclusion';
-
+			// ctx.globalCompositeOperation = 'exclusion';			
 
 			ctx.beginPath();
 			// draw already created segments
@@ -413,7 +423,7 @@
 				const txt = d.toFixed(1);
 				const txtm = ctx.measureText(txt);
 				const r0 = node1;
-				if (txtm.width + RULLERLABELPADDINGX * 2 > d * imgScale.x) return false;
+				if (txtm.width + (RULLERLABELPADDINGX + RULLERANGLERADIUS) * 2 > d * imgScale.x) return false;
 				const r1 = node2;
 				const ox = (r0.x + r1.x) / 2 * imgScale.x + imgOffset.x;
 				const oy = (r0.y + r1.y) / 2 * imgScale.y + imgOffset.y;
@@ -455,50 +465,56 @@
 				function drawAngle(n1, n2, n3) {
 					const v1 = {x: n1.x - n2.x, y: n1.y - n2.y};
 					const v2 = {x: n3.x - n2.x, y: n3.y - n2.y};
-					if (Math.min(getDistInPix(v1), getDistInPix(v2)) < RULLERANGLERADIUSMIN)
+					if (Math.min(getDistInPix(v1), getDistInPix(v2)) < RULLERANGLERADIUS * 2)
 						return;
-					const a1 = Math.atan2(v1.y, v1.x);
-					const a2 = Math.atan2(v2.y, v2.x);
+					let a1 = Math.atan2(v1.y, v1.x);
+					let a2 = Math.atan2(v2.y, v2.x);
 					let ang = a2 - a1;
 					if (ang < 0) ang += PI2;
-					ang *= 180 / PI;
+					if (ang > PI) {
+						ang -= PI;
+						[a1, a2] = [a2, a1];
+					}
+					const angDeg = ang * 180 / PI;
 					
-					const txt = ang.toFixed(0);
+					const txt = angDeg.toFixed(0);
 					const txtm = ctx.measureText(txt);
-					
-					const RAD = 10;
 
-					ctx.save();
-					ctx.arc(n2.x * imgScale.x + imgOffset.x, n2.y * imgScale.y + imgOffset.y, RAD, a1, a2);
-					// ctx.stroke();
-					// const r0 = n2;
-					// if (txtm.width + RULLERLABELPADDINGX * 2 > d * imgScale.x) return false;
-					// const r1 = node2;
-					// const ox = (r0.x + r1.x) / 2 * imgScale.x + imgOffset.x;
-					// const oy = (r0.y + r1.y) / 2 * imgScale.y + imgOffset.y;
-					// ctx.translate(ox, oy);
-					// let ang = Math.atan2(r1.y - r0.y, r1.x - r0.x);
-					// if (Math.abs(ang) > PIH) ang -= PI;
-					// ctx.rotate(ang);
-					// if (i) ctx.fillText(txt, -txtm.width / 2, -4);
-					// else ctx.strokeText(txt, -txtm.width / 2, -4);
-					ctx.restore();
+					ctx.beginPath();
+					if (Math.floor(angDeg) == 90) {
+						ctx.save();
+						ctx.translate(n2.x * imgScale.x + imgOffset.x, n2.y * imgScale.x + imgOffset.y);
+						ctx.rotate(a1);
+						ctx.moveTo(RULLERPERPENDICULARSIZE, 0);
+						ctx.lineTo(RULLERPERPENDICULARSIZE, RULLERPERPENDICULARSIZE);
+						ctx.lineTo(0, RULLERPERPENDICULARSIZE);
+						ctx.restore();
+					} else {
+						ctx.arc(n2.x * imgScale.x + imgOffset.x, n2.y * imgScale.y + imgOffset.y, RULLERANGLERADIUS, a1, a2);
+					}
+					ctx.stroke();
 
 					return;
 				}
 
-				ctx.beginPath();
 				// only draw angle if current chain contains only 2 edges
 				if (rullerAngleState == 1) {
 					for (let j = 0; j < rullerDists.length; j++) {
 						const cc = rullerNodes[j];  // current chain
-						if (cc.length === 2) {
-							// draw angle from current segment to mouse
-							drawAngle(cc[0], cc[1], livePos);
-						} else if (cc.length == 3) {
-							// draw angle for 0th and 1st segments
+						// if exactly 2 segments in chain
+						if (cc.length == 3) {
+							// then draw angle for 0th and 1st segments
 							drawAngle(cc[0], cc[1], cc[2]);
 						}
+						// if exactly 1 segment in chain
+						else if (cc.length == 2) {
+							// if live line is active to exactly this chain
+							if (cc[cc.length - 1] && j == rullerDists.length - 1) {
+								// then draw angle from current segment to line position (even constrained)
+								drawAngle(cc[0], cc[1], livePos);
+							}
+						}
+						// TODO: draw perpendicular angles everywhere where 90 degrees
 					}
 				} else {
 					console.warn("not implemented yet!");
@@ -512,7 +528,6 @@
 					// 	}
 					// }
 				}
-				ctx.stroke();
 			}
 			
 			// draw 'live' line to mouse
@@ -562,11 +577,12 @@
 					ctx.globalAlpha = 1.0;
 					ctx.stroke();
 				}
-				// // draw cursor
-				// ctx.fillStyle = 'yellow';
-				// ctx.beginPath();
-				// ctx.arc(mousePos.x, mousePos.y, RULLERCURSORR, 0, PI2);
-				// ctx.fill();
+
+				// draw cursor
+				ctx.fillStyle = 'red';
+				ctx.beginPath();
+				ctx.arc(livePos.x * imgScale.x + imgOffset.x, livePos.y * imgScale.y + imgOffset.y, RULLERCURSORR, 0, PI2);
+				ctx.fill();
 			}
 		}
 	}
@@ -639,6 +655,61 @@
 			ctx.beginPath();
 			ctx.rect(dx - 0.5, dy - 0.5, dw + 1, dh + 1);
 			ctx.stroke();
+			ctx.restore();
+		}
+
+		// draw grid
+		if (imgGridStyle && imgScale.x > GRIDMINSIZE && imgScale.y > GRIDMINSIZE) {
+			ctx.save();
+			const bounds = {
+				x0: Math.max(Math.floor(-imgOffset.x / imgScale.x), 0),
+				x1: Math.min(Math.ceil((w - imgOffset.x) / imgScale.x), img.width),
+				y0: Math.max(Math.floor(-imgOffset.y / imgScale.y), 0),
+				y1: Math.min(Math.ceil((h - imgOffset.y) / imgScale.y), img.height)
+			};
+			console.log(bounds);
+			if (imgGridStyle == 1) {
+				// draw usual square grid
+				ctx.strokeStyle = "gray";
+				ctx.lineWidth = 1;
+				// ctx.globalCompositeOperation = 'exclusion';
+				ctx.beginPath();
+				// console.log(bounds.y1 - bounds.y0);
+				for (let i = bounds.y0; i < bounds.y1; i++) {
+					const y = i * imgScale.y + imgOffset.y;
+					ctx.moveTo(bounds.x0 * imgScale.x + imgOffset.x, y);
+					ctx.lineTo(bounds.x1 * imgScale.x + imgOffset.x, y);
+				}
+				for (let i = bounds.x0; i < bounds.x1; i++) {
+					const x = i * imgScale.x + imgOffset.x;
+					ctx.moveTo(x, bounds.y0 * imgScale.y + imgOffset.y);
+					ctx.lineTo(x, bounds.y1 * imgScale.y + imgOffset.y);
+				}
+				ctx.stroke();
+			} else if (imgGridStyle == 2) {
+				// TODO: this is too slow!
+				// draw grid as points
+				for (let k = 0; k < 2; k++) {
+					if (k == 0) {
+						ctx.fillStyle = "white";
+						ctx.globalCompositeOperation = 'exclusion';
+					} else {
+						ctx.strokeStyle = "gray";
+						ctx.lineWidth = 1;
+					}
+					for (let i = bounds.x0; i < bounds.x1; i++) {
+						const x = (i + 0.5) * imgScale.x + imgOffset.x;
+						for (let j = bounds.y0; j < bounds.y1; j++) {
+							ctx.beginPath();
+							// ctx.arc(1.5 * i * imgScale.x + imgOffset.x, 1.5 * j * imgScale.y + imgOffset.y, GRIDPOINTSIZE, 0, PI2);
+							const y = (j + 0.5) * imgScale.y + imgOffset.y;
+							ctx.rect(x, y, 1, 1);
+							if (k == 0) ctx.fill();
+							else ctx.stroke();
+						}
+					}
+				}
+			}
 			ctx.restore();
 		}
 
@@ -871,7 +942,7 @@
 
 	(function initializeHotKeys() {
 		// show open file dialog
-		hotkeys('ctrl+o,esc,space,o,r,i,d,shift+d,b,h', function (evt, handler){
+		hotkeys('ctrl+o,esc,space,o,r,i,d,shift+d,b,h,g', function (evt, handler){
 			switch (handler.key) {
 				case 'ctrl+o':
 					evt.preventDefault();
@@ -909,6 +980,9 @@
 					break;
 				case 'h':
 					showHelpMessage();
+					break;
+				case 'g':
+					changeGridStyle();
 					break;
 				default: console.log(evt);
 			}
