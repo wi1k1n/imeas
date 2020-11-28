@@ -53,7 +53,7 @@
 
 	// let imgLocked = false;  // if user can move/zoom image
 	let imgBorder = true;
-	let imgGridStyle = 1; // 0 - no grid, 1 - sqaure grid, 2 - dot grid
+	let imgGridStyle = 0; // 0 - no grid, 1 - sqaure grid, 2 - dot grid
 	let tool = null;
 	// let imgLockedBeforeTool = null;
 	// Ruller variables
@@ -64,6 +64,8 @@
 	let rullerConstrPos = {x: 0, y: 0};
 	let rullerConstrain = false;
 	let rullerAngleState = 1;  // 1 - draw only first angle if only 2 edges, 0 - do not draw angles, 2 - draw all angles
+	let rullerPosSnap = 1; // 1 - snap cursor to pixel corners, 2 - snap cursor to pixel centers; 0 - dont snap
+	let rullerAngleSnap = 0; // 1 - snap angle to integer values; 0 - dont snap
 
 	function resetScale() {
 		imgScale = {x: 1.0, y: 1.0};
@@ -213,6 +215,7 @@
 				const d = dst(n, mousePosImg);
 				rullerConstrPos.x = n.x + Math.cos(angles[i]) * d;
 				rullerConstrPos.y = n.y + Math.sin(angles[i]) * d;
+			} else {
 			}
 			// rullerConstrPos = mousePosImg;
 		}
@@ -275,12 +278,21 @@
 					if (evt.shiftKey) {
 						// console.log('add constrained node');
 						calculateConstrainedPos();
-						insertNode(rullerNodes.length - 1, rullerNodes[rullerNodes.length - 1].length, rullerConstrPos);
+						if (rullerPosSnap) {
+							rullerConstrPos.x = Math.round(rullerConstrPos.x - 0.5) + 0.5;
+							rullerConstrPos.y = Math.round(rullerConstrPos.y - 0.5) + 0.5;
+						}
 					}
 					// no shift -> exact mouse position
 					else {
-						insertNode(rullerNodes.length - 1, rullerNodes[rullerNodes.length - 1].length, mousePosImg);
+						rullerConstrPos.x = mousePosImg.x;
+						rullerConstrPos.y = mousePosImg.y;
+						if (rullerPosSnap) {
+							rullerConstrPos.x = Math.round(rullerConstrPos.x - 0.5) + 0.5;
+							rullerConstrPos.y = Math.round(rullerConstrPos.y - 0.5) + 0.5;
+						}
 					}
+					insertNode(rullerNodes.length - 1, rullerNodes[rullerNodes.length - 1].length, rullerConstrPos);
 				}
 			}
 		}
@@ -292,6 +304,8 @@
 	function toolsMouseMove(evt) {
 		// need to redraw, since with ruller cursor is moving
 		if (tool === 'ruller') {
+			rullerConstrPos.x = mousePosImg.x;
+			rullerConstrPos.y = mousePosImg.y;
 			// is dragging node
 			if (rullerDragOffset) {
 				rullerNodes[rullerClickedNodeInds[0]][rullerClickedNodeInds[1]].x = (evt.x - imgOffset.x) / imgScale.x - rullerDragOffset.x;
@@ -300,6 +314,10 @@
 			}
 			if (rullerConstrain) {
 				calculateConstrainedPos();
+			}
+			if (rullerPosSnap) {
+				rullerConstrPos.x = Math.round(rullerConstrPos.x - 0.5) + 0.5;
+				rullerConstrPos.y = Math.round(rullerConstrPos.y - 0.5) + 0.5;
 			}
 			redrawImage();
 			updateDivTools();
@@ -451,9 +469,10 @@
 
 			// get position of cursor to draw live line to (not mousePos, since can be e.g. constrained)
 			let livePos = {...mousePosImg};
-			if (rullerConstrain) {
-				livePos = rullerConstrPos;
-			}
+			// if (rullerConstrain) {
+			// 	livePos = rullerConstrPos;
+			// }
+			livePos = rullerConstrPos;
 			
 			// draw angles
 			if (rullerAngleState) {
@@ -471,7 +490,7 @@
 					let a2 = Math.atan2(v2.y, v2.x);
 					let ang = a2 - a1;
 					if (ang < 0) ang += PI2;
-					if (ang > PI) {
+					if (ang - PI > 1e-4) {
 						ang -= PI;
 						[a1, a2] = [a2, a1];
 					}
@@ -481,7 +500,7 @@
 					const txtm = ctx.measureText(txt);
 
 					ctx.beginPath();
-					if (Math.floor(angDeg) == 90) {
+					if (Math.abs(angDeg - 90) <= 1) {
 						ctx.save();
 						ctx.translate(n2.x * imgScale.x + imgOffset.x, n2.y * imgScale.x + imgOffset.y);
 						ctx.rotate(a1);
