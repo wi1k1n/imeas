@@ -1,10 +1,8 @@
 (function() {
 	const DEBUG = false;
 
-	const IMGMAXWIDTH = 16384;
-	const IMGMAXHEIGHT = 16384;
-	const IMGMINWIDTH = 8;
-	const IMGMINHEIGHT = 8;
+	const PIXELMAXSIZE = 128;
+	const IMGMINSIZE = 8;
 	const DRAGMINDST = 1;  // minimum distance (manhattan) at which drag detection starts
 	const ZOOMMLT = 1.1;
 	const GRIDMINSIZE = 10; // minimum scale size, when grid appears
@@ -53,7 +51,7 @@
 
 	// let imgLocked = false;  // if user can move/zoom image
 	let imgBorder = true;
-	let imgGridStyle = 0; // 0 - no grid, 1 - sqaure grid, 2 - dot grid
+	let imgGridStyle = 2; // 0 - no grid, 1 - sqaure grid, 2 - dot grid
 	let tool = null;
 	// let imgLockedBeforeTool = null;
 	// Ruller variables
@@ -144,9 +142,8 @@
 		redrawImage();
 	}
 	function changeGridStyle() {
-		imgGridStyle++;
-		// if (imgGridStyle >= 3) imgGridStyle = 0;
-		if (imgGridStyle >= 2) imgGridStyle = 0;
+		imgGridStyle--;
+		if (imgGridStyle < 0) imgGridStyle = 2;
 		redrawImage();
 	}
 	function rullerRecalculateDistances(inds) {
@@ -629,10 +626,16 @@
 		let mlt = evt.deltaY < 0 ? ZOOMMLTIN : ZOOMMLTOUT;
 
 		// limit zoom
-		const newW = img.width * imgScale.x * mlt;
-		const newH = img.height * imgScale.y * mlt;
-		if (newW > IMGMAXWIDTH || newW < IMGMINWIDTH || newH > IMGMAXHEIGHT || newH < IMGMINHEIGHT)
+		// const newW = img.width * imgScale.x * mlt;
+		// const newH = img.height * imgScale.y * mlt;
+		// if (newW > IMGMAXWIDTH || newW < IMGMINWIDTH || newH > IMGMAXHEIGHT || newH < IMGMINHEIGHT)
+		// 	return;
+		if (Math.max(imgScale.x, imgScale.y) * mlt > PIXELMAXSIZE) {
 			return;
+		}
+		if (Math.max(img.width * imgScale.x, img.height * imgScale.y) * mlt < IMGMINSIZE) {
+			return;
+		}
 
 		// initially stationary point is at the cursor
 		let stationaryPoint = {x: evt.x, y: evt.y};
@@ -686,48 +689,40 @@
 				y0: Math.max(Math.floor(-imgOffset.y / imgScale.y), 0),
 				y1: Math.min(Math.ceil((h - imgOffset.y) / imgScale.y), img.height)
 			};
-			console.log(bounds);
+			// console.log(bounds);
+			// console.log(bounds.y1 - bounds.y0);
+			
+			// draw usual square grid
+			ctx.strokeStyle = "gray";
+			ctx.lineWidth = 1;
+			// ctx.globalCompositeOperation = 'exclusion';
+			ctx.setLineDash([]);
+			let dottedOffset = {x: 0, y: 0};
+
+			// draw horizontal grid lines or all dots
+			if (imgGridStyle == 2) {
+				ctx.lineWidth = 2;
+				dottedOffset.x = imgScale.x / 2 - 1;
+				dottedOffset.y = imgScale.y / 2;
+				ctx.setLineDash([2, imgScale.x - 2]);
+			}
+			ctx.beginPath();
+			for (let i = bounds.y0; i < bounds.y1; i++) {
+				const y = i * imgScale.y + imgOffset.y;
+				ctx.moveTo(bounds.x0 * imgScale.x + imgOffset.x + dottedOffset.x, y + dottedOffset.y);
+				ctx.lineTo(bounds.x1 * imgScale.x + imgOffset.x + dottedOffset.x, y + dottedOffset.y);
+			}
+			ctx.stroke();
+
+			// draw vertical lines
 			if (imgGridStyle == 1) {
-				// draw usual square grid
-				ctx.strokeStyle = "gray";
-				ctx.lineWidth = 1;
-				// ctx.globalCompositeOperation = 'exclusion';
 				ctx.beginPath();
-				// console.log(bounds.y1 - bounds.y0);
-				for (let i = bounds.y0; i < bounds.y1; i++) {
-					const y = i * imgScale.y + imgOffset.y;
-					ctx.moveTo(bounds.x0 * imgScale.x + imgOffset.x, y);
-					ctx.lineTo(bounds.x1 * imgScale.x + imgOffset.x, y);
-				}
 				for (let i = bounds.x0; i < bounds.x1; i++) {
 					const x = i * imgScale.x + imgOffset.x;
 					ctx.moveTo(x, bounds.y0 * imgScale.y + imgOffset.y);
 					ctx.lineTo(x, bounds.y1 * imgScale.y + imgOffset.y);
 				}
 				ctx.stroke();
-			} else if (imgGridStyle == 2) {
-				// TODO: this is too slow!
-				// draw grid as points
-				for (let k = 0; k < 2; k++) {
-					if (k == 0) {
-						ctx.fillStyle = "white";
-						ctx.globalCompositeOperation = 'exclusion';
-					} else {
-						ctx.strokeStyle = "gray";
-						ctx.lineWidth = 1;
-					}
-					for (let i = bounds.x0; i < bounds.x1; i++) {
-						const x = (i + 0.5) * imgScale.x + imgOffset.x;
-						for (let j = bounds.y0; j < bounds.y1; j++) {
-							ctx.beginPath();
-							// ctx.arc(1.5 * i * imgScale.x + imgOffset.x, 1.5 * j * imgScale.y + imgOffset.y, GRIDPOINTSIZE, 0, PI2);
-							const y = (j + 0.5) * imgScale.y + imgOffset.y;
-							ctx.rect(x, y, 1, 1);
-							if (k == 0) ctx.fill();
-							else ctx.stroke();
-						}
-					}
-				}
 			}
 			ctx.restore();
 		}
