@@ -5,6 +5,7 @@
 	const IMGMINSIZE = 8;
 	const DRAGMINDST = 1;  // minimum distance (manhattan) at which drag detection starts
 	const ZOOMMLT = 1.1;
+	const ZOOMMLTFAST = 2;
 	const GRIDMINSIZE = 10; // minimum scale size, when grid appears
 	const GRIDPOINTSIZE = 1.5;
 
@@ -22,8 +23,6 @@
 	const PI = Math.PI;
 	const PI2 = Math.PI * 2;
 	const PIH = Math.PI * 0.5;
-	const ZOOMMLTIN = ZOOMMLT;
-	const ZOOMMLTOUT = 1. / ZOOMMLT;
 
 	const cnv = document.getElementById('cnv_editor');
 	const ctx = cnv.getContext ? cnv.getContext('2d') : null;
@@ -595,10 +594,14 @@
 				}
 
 				// draw cursor
+				ctx.save();
 				ctx.fillStyle = 'red';
+				ctx.shadowColor = 'black';
+				ctx.shadowBlur = 3;
 				ctx.beginPath();
 				ctx.arc(livePos.x * imgScale.x + imgOffset.x, livePos.y * imgScale.y + imgOffset.y, RULLERCURSORR, 0, PI2);
 				ctx.fill();
+				ctx.restore();
 			}
 		}
 	}
@@ -623,18 +626,22 @@
 	function zoom(evt) {
 		// if (imgLocked) return;
 
-		let mlt = evt.deltaY < 0 ? ZOOMMLTIN : ZOOMMLTOUT;
+		const zmlt = evt.shiftKey ? ZOOMMLTFAST : ZOOMMLT;
+		const mlt = evt.deltaY < 0 ? zmlt : 1. / zmlt;
+		const m = {x: mlt, y: mlt};
 
-		// limit zoom
-		// const newW = img.width * imgScale.x * mlt;
-		// const newH = img.height * imgScale.y * mlt;
-		// if (newW > IMGMAXWIDTH || newW < IMGMINWIDTH || newH > IMGMAXHEIGHT || newH < IMGMINHEIGHT)
-		// 	return;
-		if (Math.max(imgScale.x, imgScale.y) * mlt > PIXELMAXSIZE) {
-			return;
+		//// limit zoom
+		// limit maxZoom
+		if (Math.max(imgScale.x * m.x, imgScale.y * m.y) > PIXELMAXSIZE) {
+			if (imgScale.x * m.x > PIXELMAXSIZE) m.x = PIXELMAXSIZE / imgScale.x;
+			if (imgScale.y * m.y > PIXELMAXSIZE) m.y = PIXELMAXSIZE / imgScale.y;
+			// return;
 		}
-		if (Math.max(img.width * imgScale.x, img.height * imgScale.y) * mlt < IMGMINSIZE) {
-			return;
+		// limit minZoom
+		if (Math.max(img.width * imgScale.x * m.x, img.height * imgScale.y * m.y) < IMGMINSIZE) {
+			if (img.width * imgScale.x * m.x < IMGMINSIZE) m.x = IMGMINSIZE / (imgScale.x * img.width);
+			if (img.height * imgScale.y * m.y < IMGMINSIZE) m.y = IMGMINSIZE / (imgScale.y * img.height);
+			// return;
 		}
 
 		// initially stationary point is at the cursor
@@ -646,10 +653,10 @@
 			stationaryPoint = {x: imgOffset.x + img.width * imgScale.x / 2, y: imgOffset.y + img.height * imgScale.y / 2};
 
 		// recalc scale & offset
-		imgScale.x *= mlt;
-		imgScale.y *= mlt;
-		imgOffset.x = stationaryPoint.x - (stationaryPoint.x - imgOffset.x) * mlt;
-		imgOffset.y = stationaryPoint.y - (stationaryPoint.y - imgOffset.y) * mlt;
+		imgScale.x *= m.x;
+		imgScale.y *= m.y;
+		imgOffset.x = stationaryPoint.x - (stationaryPoint.x - imgOffset.x) * m.x;
+		imgOffset.y = stationaryPoint.y - (stationaryPoint.y - imgOffset.y) * m.y;
 
 		redrawImage();
 	}
@@ -691,36 +698,44 @@
 			};
 			// console.log(bounds);
 			// console.log(bounds.y1 - bounds.y0);
-			
-			// draw usual square grid
-			ctx.strokeStyle = "gray";
-			ctx.lineWidth = 1;
-			// ctx.globalCompositeOperation = 'exclusion';
-			ctx.setLineDash([]);
-			let dottedOffset = {x: 0, y: 0};
 
-			// draw horizontal grid lines or all dots
-			if (imgGridStyle == 2) {
-				ctx.lineWidth = 2;
-				dottedOffset.x = imgScale.x / 2 - 1;
-				dottedOffset.y = imgScale.y / 2;
-				ctx.setLineDash([2, imgScale.x - 2]);
-			}
-			ctx.beginPath();
-			for (let i = bounds.y0; i < bounds.y1; i++) {
-				const y = i * imgScale.y + imgOffset.y;
-				ctx.moveTo(bounds.x0 * imgScale.x + imgOffset.x + dottedOffset.x, y + dottedOffset.y);
-				ctx.lineTo(bounds.x1 * imgScale.x + imgOffset.x + dottedOffset.x, y + dottedOffset.y);
-			}
-			ctx.stroke();
-
-			// draw vertical lines
+			// draw grid square style
 			if (imgGridStyle == 1) {
+				ctx.strokeStyle = "gray";
+				ctx.lineWidth = 1;
+				// ctx.globalCompositeOperation = 'exclusion';
 				ctx.beginPath();
+				for (let i = bounds.y0; i < bounds.y1; i++) {
+					const y = i * imgScale.y + imgOffset.y;
+					ctx.moveTo(bounds.x0 * imgScale.x + imgOffset.x, y);
+					ctx.lineTo(bounds.x1 * imgScale.x + imgOffset.x, y);
+				}
 				for (let i = bounds.x0; i < bounds.x1; i++) {
 					const x = i * imgScale.x + imgOffset.x;
 					ctx.moveTo(x, bounds.y0 * imgScale.y + imgOffset.y);
 					ctx.lineTo(x, bounds.y1 * imgScale.y + imgOffset.y);
+				}
+				ctx.stroke();
+			}
+			// draw grid dotted style
+			else if (imgGridStyle == 2) {
+				const GRIDDOTSIZE = 3;
+				ctx.strokeStyle = "black";
+				ctx.lineWidth = GRIDDOTSIZE;
+				ctx.shadowColor = 'white';
+				ctx.shadowBlur = 3;
+				// ctx.globalCompositeOperation = 'difference';
+				// ctx.globalAlpha = 0.4;
+				let dottedOffset = {x: 0, y: 0};
+				dottedOffset.x = imgScale.x / 2 - GRIDDOTSIZE / 2;
+				dottedOffset.y = imgScale.y / 2;
+				ctx.setLineDash([GRIDDOTSIZE, imgScale.x - GRIDDOTSIZE]);
+				
+				ctx.beginPath();
+				for (let i = bounds.y0; i < bounds.y1; i++) {
+					const y = i * imgScale.y + imgOffset.y;
+					ctx.moveTo(bounds.x0 * imgScale.x + imgOffset.x + dottedOffset.x, y + dottedOffset.y);
+					ctx.lineTo(bounds.x1 * imgScale.x + imgOffset.x + dottedOffset.x, y + dottedOffset.y);
 				}
 				ctx.stroke();
 			}
