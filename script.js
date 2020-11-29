@@ -145,6 +145,9 @@
 		if (imgGridStyle < 0) imgGridStyle = 2;
 		redrawImage();
 	}
+	function togglePosSnap() {
+		rullerPosSnap = (++rullerPosSnap) % 2;
+	}
 	function rullerRecalculateDistances(inds) {
 		inds = inds ?? [null, null];
 		const chainFrom = inds[0] ?? 0, node = inds[1] ?? 0;
@@ -274,10 +277,10 @@
 					if (evt.shiftKey) {
 						// console.log('add constrained node');
 						calculateConstrainedPos();
-						if (rullerPosSnap) {
-							rullerConstrPos.x = Math.round(rullerConstrPos.x - 0.5) + 0.5;
-							rullerConstrPos.y = Math.round(rullerConstrPos.y - 0.5) + 0.5;
-						}
+						// if (rullerPosSnap) {
+						// 	rullerConstrPos.x = Math.round(rullerConstrPos.x - 0.5) + 0.5;
+						// 	rullerConstrPos.y = Math.round(rullerConstrPos.y - 0.5) + 0.5;
+						// }
 					}
 					// no shift -> exact mouse position
 					else {
@@ -304,14 +307,18 @@
 			rullerConstrPos.y = mousePosImg.y;
 			// is dragging node
 			if (rullerDragOffset) {
-				rullerNodes[rullerClickedNodeInds[0]][rullerClickedNodeInds[1]].x = (evt.x - imgOffset.x) / imgScale.x - rullerDragOffset.x;
-				rullerNodes[rullerClickedNodeInds[0]][rullerClickedNodeInds[1]].y = (evt.y - imgOffset.y) / imgScale.y - rullerDragOffset.y;
+				const i0 = rullerClickedNodeInds[0],
+					  i1 = rullerClickedNodeInds[1];
+				rullerNodes[i0][i1].x = (evt.x - imgOffset.x) / imgScale.x - rullerDragOffset.x;
+				rullerNodes[i0][i1].y = (evt.y - imgOffset.y) / imgScale.y - rullerDragOffset.y;
+				if (rullerPosSnap) {
+					rullerNodes[i0][i1].x = Math.round(rullerNodes[i0][i1].x - 0.5) + 0.5;
+					rullerNodes[i0][i1].y = Math.round(rullerNodes[i0][i1].y - 0.5) + 0.5;
+				}
 				rullerRecalculateDistances(rullerClickedNodeInds);
-			}
-			if (rullerConstrain) {
+			} else if (rullerConstrain) {
 				calculateConstrainedPos();
-			}
-			if (rullerPosSnap) {
+			} else if (rullerPosSnap) {
 				rullerConstrPos.x = Math.round(rullerConstrPos.x - 0.5) + 0.5;
 				rullerConstrPos.y = Math.round(rullerConstrPos.y - 0.5) + 0.5;
 			}
@@ -701,7 +708,7 @@
 
 			// draw grid square style
 			if (imgGridStyle == 1) {
-				ctx.strokeStyle = "gray";
+				ctx.strokeStyle = "#A1A1A1";
 				ctx.lineWidth = 1;
 				// ctx.globalCompositeOperation = 'exclusion';
 				ctx.beginPath();
@@ -719,12 +726,12 @@
 			}
 			// draw grid dotted style
 			else if (imgGridStyle == 2) {
-				const GRIDDOTSIZE = 3;
-				ctx.strokeStyle = "black";
+				const GRIDDOTSIZE = 2;
+				ctx.strokeStyle = "white";
 				ctx.lineWidth = GRIDDOTSIZE;
-				ctx.shadowColor = 'white';
-				ctx.shadowBlur = 3;
-				// ctx.globalCompositeOperation = 'difference';
+				// ctx.shadowColor = 'white';
+				// ctx.shadowBlur = 3;
+				ctx.globalCompositeOperation = 'difference';
 				// ctx.globalAlpha = 0.4;
 				let dottedOffset = {x: 0, y: 0};
 				dottedOffset.x = imgScale.x / 2 - GRIDDOTSIZE / 2;
@@ -794,14 +801,15 @@
 	}
 	function cnvOnDragStart(evt) {
 		// right mouse button
-		if (evt.buttons === 2) {
+		if (evt.buttons === 2 || evt.buttons === 4) {
 			imgOffsetClick.x = downPos.x - imgOffset.x;
 			imgOffsetClick.y = downPos.y - imgOffset.y;
 		}
 	}
 	function cnvOnDrag(evt) {
 		// right mouse button
-		if (evt.buttons === 2) {
+		if (evt.buttons === 2 || evt.buttons === 4) {
+			// TODO: for some reason clicking MMB while holding RMB cancels dragging
 			// if (imgLocked) return;
 
 			imgOffset.x = evt.x - imgOffsetClick.x;
@@ -926,7 +934,7 @@
 	function showHelpMessage() {
 		const helpMessage = `<table class="help-table">
 <tr><td><b>ctrl + o</b></td><td> - load image from disk</td></tr>
-<tr><td><b>RMB</b></td><td> - drag image</td></tr>
+<tr><td><b>RMB / MMB</b></td><td> - drag image</td></tr>
 <tr><td><b>wheel</b></td><td> - zoom to cursor</td></tr>
 <tr><td><b>alt + wheel</b></td><td> - zoom to center</td></tr>
 <tr><td><b>r</b></td><td> - ruller tool</td></tr>
@@ -941,6 +949,8 @@
 <tr><td><b>space</b></td><td> - reset position and scale</td></tr>
 <tr><td><b>i</b></td><td> - toggle interpolation</td></tr>
 <tr><td><b>b</b></td><td> - toggle border</td></tr>
+<tr><td><b>g</b></td><td> - toggle grid</td></tr>
+<tr><td><b>s</b></td><td> - toggle snapping to pixels</td></tr>
 <tr><td><b>? / h</b></td><td> - show this help</td></tr>
 <tr><td><b>ctrl + v</b></td><td> - paste image from clipboard (only in Chrome)</td></tr>
 </table>`;
@@ -971,7 +981,7 @@
 
 	(function initializeHotKeys() {
 		// show open file dialog
-		hotkeys('ctrl+o,esc,space,o,r,i,d,shift+d,b,h,g', function (evt, handler){
+		hotkeys('ctrl+o,esc,space,o,r,i,d,shift+d,b,h,g,s', function (evt, handler){
 			switch (handler.key) {
 				case 'ctrl+o':
 					evt.preventDefault();
@@ -1013,6 +1023,8 @@
 				case 'g':
 					changeGridStyle();
 					break;
+				case 's':
+					togglePosSnap();
 				default: console.log(evt);
 			}
 		});
