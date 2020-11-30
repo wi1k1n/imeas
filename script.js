@@ -146,7 +146,7 @@
 		redrawImage();
 	}
 	function togglePosSnap() {
-		rullerPosSnap = (++rullerPosSnap) % 2;
+		rullerPosSnap = (++rullerPosSnap) % 3;
 	}
 	function rullerRecalculateDistances(inds) {
 		inds = inds ?? [null, null];
@@ -287,8 +287,9 @@
 						rullerConstrPos.x = mousePosImg.x;
 						rullerConstrPos.y = mousePosImg.y;
 						if (rullerPosSnap) {
-							rullerConstrPos.x = Math.round(rullerConstrPos.x - 0.5) + 0.5;
-							rullerConstrPos.y = Math.round(rullerConstrPos.y - 0.5) + 0.5;
+							const rpsShift = (rullerPosSnap % 2) * 0.5;
+							rullerConstrPos.x = Math.round(rullerConstrPos.x - rpsShift) + rpsShift;
+							rullerConstrPos.y = Math.round(rullerConstrPos.y - rpsShift) + rpsShift;
 						}
 					}
 					insertNode(rullerNodes.length - 1, rullerNodes[rullerNodes.length - 1].length, rullerConstrPos);
@@ -312,15 +313,17 @@
 				rullerNodes[i0][i1].x = (evt.x - imgOffset.x) / imgScale.x - rullerDragOffset.x;
 				rullerNodes[i0][i1].y = (evt.y - imgOffset.y) / imgScale.y - rullerDragOffset.y;
 				if (rullerPosSnap) {
-					rullerNodes[i0][i1].x = Math.round(rullerNodes[i0][i1].x - 0.5) + 0.5;
-					rullerNodes[i0][i1].y = Math.round(rullerNodes[i0][i1].y - 0.5) + 0.5;
+					const rpsShift = (rullerPosSnap % 2) * 0.5;
+					rullerNodes[i0][i1].x = Math.round(rullerNodes[i0][i1].x - rpsShift) + rpsShift;
+					rullerNodes[i0][i1].y = Math.round(rullerNodes[i0][i1].y - rpsShift) + rpsShift;
 				}
 				rullerRecalculateDistances(rullerClickedNodeInds);
 			} else if (rullerConstrain) {
 				calculateConstrainedPos();
 			} else if (rullerPosSnap) {
-				rullerConstrPos.x = Math.round(rullerConstrPos.x - 0.5) + 0.5;
-				rullerConstrPos.y = Math.round(rullerConstrPos.y - 0.5) + 0.5;
+				const rpsShift = (rullerPosSnap % 2) * 0.5;
+				rullerConstrPos.x = Math.round(rullerConstrPos.x - rpsShift) + rpsShift;
+				rullerConstrPos.y = Math.round(rullerConstrPos.y - rpsShift) + rpsShift;
 			}
 			redrawImage();
 			updateDivTools();
