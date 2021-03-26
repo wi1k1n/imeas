@@ -1,4 +1,29 @@
-TODO list:
+## Imeas
+
+A tiny web/javascript app for making linear and angular measurements on images.
+
+### Shortcuts:
+* RMB	- drag image
+* wheel	- zoom to cursor
+* alt + wheel	- zoom to center
+* r	- ruller tool
+* LMB	- new node / drag node
+* shift	- constrain new node
+* ctrl+LMB → node	- add new node
+* MMB / d → node	- delete node
+* shift+MMB → node	- delete whole chain
+* shift+d → node
+* esc	- cancel current ruller chain
+* o	- place image to center
+* space	- reset position and scale
+* i	- toggle interpolation
+* b	- toggle border
+* ? / h	- show this help
+* ctrl + v	- paste image from clipboard (only in Chrome)
+
+
+### TODO list:
+
 - Show angles (A hotkey)
 - Drag&Drop on MMB as well as RMB
 - Magnifier
